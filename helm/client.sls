@@ -45,4 +45,13 @@ install_tiller:
     - unless: "helm version --server --short | grep -E 'Server: v{{ client.version }}(\\+|$)'"
     - require:
       - cmd: prepare_client
+
+{%- for repo_name, repo_url in client.repos.items() %}
+ensure_{{ repo_name }}_repo:
+  cmd.run:
+    - name: helm repo add {{ repo_name }} {{ repo_url }}
+    - require:
+      - cmd: prepare_client
+{%- endfor %}
+
 {%- endif %}
