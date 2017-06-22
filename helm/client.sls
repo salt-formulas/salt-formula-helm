@@ -57,6 +57,7 @@ ensure_{{ repo_name }}_repo:
     - name: helm repo add {{ repo_name }} {{ repo_url }}
     - env:
       - HELM_HOME: {{ helm_home }}
+    - unless: helm repo list | grep '^{{ repo_name }}[[:space:]]{{ repo_url|replace(".", "\.") }}'
     - require:
       - cmd: prepare_client
 {%- endfor %}
