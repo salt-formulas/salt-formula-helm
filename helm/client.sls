@@ -3,6 +3,7 @@
 
 {%- set helm_tmp = "/tmp/helm-" + client.version %}
 {%- set helm_bin = "/usr/bin/helm-" + client.version %}
+{%- set helm_home = "/srv/helm/home" %}
 
 {{ helm_tmp }}:
   file.directory:
@@ -35,13 +36,17 @@
 prepare_client:
   cmd.run:
     - name: helm init --client-only
-    - unless: test -d /root/.helm
+    - env:
+      - HELM_HOME: {{ helm_home }}
+    - unless: test -d {{ helm_home }}
     - require:
       - file: /usr/bin/helm
 
 install_tiller:
   cmd.run:
     - name: helm init --upgrade
+    - env:
+      - HELM_HOME: {{ helm_home }}
     - unless: "helm version --server --short | grep -E 'Server: v{{ client.version }}(\\+|$)'"
     - require:
       - cmd: prepare_client
@@ -50,6 +55,8 @@ install_tiller:
 ensure_{{ repo_name }}_repo:
   cmd.run:
     - name: helm repo add {{ repo_name }} {{ repo_url }}
+    - env:
+      - HELM_HOME: {{ helm_home }}
     - require:
       - cmd: prepare_client
 {%- endfor %}
