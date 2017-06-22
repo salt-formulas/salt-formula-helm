@@ -1,0 +1,12 @@
+{%- from "helm/map.jinja" import client with context %}
+# Fill in documentation details
+doc:
+  name: helm
+  description: Some service info
+  role:
+    client:
+      name: client
+      param:
+        some_param:
+          name: "Some name"
+          value: "some value"
