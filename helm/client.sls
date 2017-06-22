@@ -62,4 +62,17 @@ ensure_{{ repo_name }}_repo:
       - cmd: prepare_client
 {%- endfor %}
 
+{%- for release_id, release in client.releases.items() %}
+{%- set release_name = release.get('name', release_id) %}
+ensure_{{ release_id }}_release:
+  cmd.run:
+    - name: helm install --name {{ release_name }} {{ release['chart'] }}
+      {%- if release.get('version') %} --version {{ release['version'] }}{% endif %}
+    - unless: helm get "{{ release_name }}"
+    - env:
+      - HELM_HOME: {{ helm_home }}
+    - require:
+      - cmd: prepare_client
+{%- endfor %}
+
 {%- endif %}
