@@ -1,0 +1,10 @@
+applications:
+- helm
+classes:
+- service.helm.support
+parameters:
+  helm:
+    client:
+      enabled: true
+      bind:
+        address: 0.0.0.0

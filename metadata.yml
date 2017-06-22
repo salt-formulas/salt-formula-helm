@@ -1,0 +1,3 @@
+name: "helm"
+version: "0.1"
+source: "https://github.com/YorikSar/salt-formula-helm"

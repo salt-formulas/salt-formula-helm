@@ -1,0 +1,5 @@
+salt-formula-helm (0.1) trusty; urgency=medium
+
+  * Initial release
+
+ -- Yuriy Taraday <ytaraday@mirantis.com>  Thu, 13 Aug 2015 23:23:41 +0200
