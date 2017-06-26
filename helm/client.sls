@@ -63,16 +63,33 @@ ensure_{{ repo_name }}_repo:
 {%- endfor %}
 
 {%- for release_id, release in client.releases.items() %}
+
+{%- if release.get('values', False) %}
+{%- set values_path = "/srv/helm/releases/" + release_id + "/values.yaml" %}
+
+{{ values_path }}:
+  file.managed:
+    - makedirs: True
+    - contents: |
+        {{ release['values']|yaml(False)|indent(8) }}
+
+{%- endif %}
+
 {%- set release_name = release.get('name', release_id) %}
+
 ensure_{{ release_id }}_release:
   cmd.run:
-    - name: helm install --name {{ release_name }} {{ release['chart'] }}
+    - name: helm install --name "{{ release_name }}" {{ release['chart'] }}
       {%- if release.get('version') %} --version {{ release['version'] }}{% endif %}
+      {%- if release.get('values') %} --values {{ values_path }}{% endif %}
     - unless: helm get "{{ release_name }}"
     - env:
       - HELM_HOME: {{ helm_home }}
     - require:
       - cmd: prepare_client
+      {%- if release.get('values') %}
+      - file: {{ values_path }}
+      {%- endif %}
 {%- endfor %}
 
 {%- endif %}
