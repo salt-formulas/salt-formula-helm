@@ -1,0 +1,4 @@
+[gerrit]
+host=mcp-ci-gerrit
+port=29418
+project=salt-formulas/helm.git
