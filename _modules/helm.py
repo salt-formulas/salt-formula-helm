@@ -28,3 +28,21 @@ def release_create(name, chart_name, version=None, values=None):
         cmd['stdin'] = yaml.serialize(values, default_flow_style=False)
     LOG.debug('Creating release with args: %s', cmd)
     return __salt__['cmd.retcode'](**cmd) == 0
+
+
+def release_upgrade(name, chart_name, version=None, values=None):
+    args = []
+    if version is not None:
+        args += ['--version', version]
+    if values is not None:
+        args += ['--values', '/dev/stdin']
+    cmd = _helm_cmd('upgrade', name, chart_name, *args)
+    if values is not None:
+        cmd['stdin'] = yaml.serialize(values, default_flow_style=False)
+    LOG.debug('Creating release with args: %s', cmd)
+    return __salt__['cmd.retcode'](**cmd) == 0
+
+
+def get_values(name):
+    cmd = _helm_cmd('get', 'values', '--all', name)
+    return yaml.deserialize(__salt__['cmd.run_stdout'](**cmd))
