@@ -51,6 +51,14 @@ install_tiller:
     - require:
       - cmd: prepare_client
 
+wait_for_tiller:
+  cmd.run:
+    - name: while ! helm list; do sleep 3; done
+    - env:
+      - HELM_HOME: {{ helm_home }}
+    - onchanges:
+      - cmd: install_tiller
+
 {%- for repo_name, repo_url in client.repos.items() %}
 ensure_{{ repo_name }}_repo:
   cmd.run:
@@ -76,7 +84,7 @@ ensure_{{ release_id }}_release:
         {{ release['values']|yaml(False)|indent(8) }}
     {% endif %}
     - require:
-      - cmd: prepare_client
+      - cmd: wait_for_tiller
 {%- endfor %}
 
 {%- endif %}
