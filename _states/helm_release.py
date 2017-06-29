@@ -48,5 +48,5 @@ def present(name, chart_name, version=None, values=None):
         'name': name,
         'changes': {'values': '\n'.join(diff)},
         'result': True,
-        'comment': 'Release "{}" already exists'.format(name),
+        'comment': 'Release "{}" was updated'.format(name),
     }
