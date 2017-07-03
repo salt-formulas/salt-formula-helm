@@ -50,3 +50,28 @@ def present(name, chart_name, version=None, values=None):
         'result': True,
         'comment': 'Release "{}" was updated'.format(name),
     }
+
+
+def absent(name):
+    exists =  __salt__['helm.release_exists'](name)
+    if not exists:
+        return {
+            'name': name,
+            'changes': {},
+            'result': True,
+            'comment': 'Release "{}" doesn\'t exist'.format(name),
+        }
+    result = __salt__['helm.release_delete'](name)
+    if not result:
+        return {
+            'name': name,
+            'changes': {},
+            'result': False,
+            'comment': 'Failed to delete release "{}"'.format(name),
+        }
+    return {
+        'name': name,
+        'changes': {name: 'DELETED'},
+        'result': True,
+        'comment': 'Release "{}" was deleted'.format(name),
+    }

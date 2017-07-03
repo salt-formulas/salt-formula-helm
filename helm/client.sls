@@ -72,6 +72,7 @@ ensure_{{ repo_name }}_repo:
 
 {%- for release_id, release in client.releases.items() %}
 {%- set release_name = release.get('name', release_id) %}
+{%- if release.get('enabled', True) %}
 ensure_{{ release_id }}_release:
   helm_release.present:
     - name: {{ release_name }}
@@ -85,6 +86,11 @@ ensure_{{ release_id }}_release:
     {% endif %}
     - require:
       - cmd: wait_for_tiller
-{%- endfor %}
+{%- else %}{# not release.enabled #}
+absent_{{ release_id }}_release:
+  helm_release.absent:
+    - name: {{ release_name }}
+{%- endif %}{# release.enabled #}
+{%- endfor %}{# release_id, release in client.releases #}
 
 {%- endif %}

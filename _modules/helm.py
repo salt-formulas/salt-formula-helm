@@ -30,6 +30,11 @@ def release_create(name, chart_name, version=None, values=None):
     return __salt__['cmd.retcode'](**cmd) == 0
 
 
+def release_delete(name):
+    cmd = _helm_cmd('delete', '--purge', name)
+    return __salt__['cmd.retcode'](**cmd) == 0
+
+
 def release_upgrade(name, chart_name, version=None, values=None):
     args = []
     if version is not None:
@@ -39,7 +44,7 @@ def release_upgrade(name, chart_name, version=None, values=None):
     cmd = _helm_cmd('upgrade', name, chart_name, *args)
     if values is not None:
         cmd['stdin'] = yaml.serialize(values, default_flow_style=False)
-    LOG.debug('Creating release with args: %s', cmd)
+    LOG.debug('Upgrading release with args: %s', cmd)
     return __salt__['cmd.retcode'](**cmd) == 0
 
 
