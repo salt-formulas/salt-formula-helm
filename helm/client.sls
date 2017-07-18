@@ -13,7 +13,11 @@
     - source: {{ client.download_url }}
     - source_hash: {{ client.download_hash }}
     - archive_format: tar
+    {%- if grains['saltversioninfo'] < [2016, 11] %}
     - tar_options: v
+    {%- else %}
+    - options: v
+    {%- endif %}
     - if_missing: {{ helm_tmp }}/linux-amd64/helm
     - require:
       - file: {{ helm_tmp }}
