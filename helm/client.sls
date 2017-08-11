@@ -74,27 +74,40 @@ ensure_{{ repo_name }}_repo:
       - cmd: prepare_client
 {%- endfor %}
 
+{%- set namespaces = [] %}
 {%- for release_id, release in client.releases.items() %}
 {%- set release_name = release.get('name', release_id) %}
+{%- set namespace = release.get('namespace', 'default') %}
 {%- if release.get('enabled', True) %}
 ensure_{{ release_id }}_release:
   helm_release.present:
     - name: {{ release_name }}
     - chart_name: {{ release['chart'] }}
+    - namespace: {{ namespace }}
     {%- if release.get('version') %}
     - version: {{ release['version'] }}
-    {% endif %}
+    {%- endif %}
     {%- if release.get('values') %}
     - values:
         {{ release['values']|yaml(False)|indent(8) }}
-    {% endif %}
+    {%- endif %}
     - require:
       - cmd: wait_for_tiller
+      - cmd: ensure_{{ namespace }}_namespace
+    {%- do namespaces.append(namespace) %}
 {%- else %}{# not release.enabled #}
 absent_{{ release_id }}_release:
   helm_release.absent:
     - name: {{ release_name }}
+    - namespace: {{ namespace }}
 {%- endif %}{# release.enabled #}
 {%- endfor %}{# release_id, release in client.releases #}
+
+{%- for namespace in namespaces %}
+ensure_{{ namespace }}_namespace:
+  cmd.run:
+    - name: kubectl create namespace {{ namespace }}
+    - unless: kubectl get namespace {{ namespace }}
+{%- endfor %}
 
 {%- endif %}

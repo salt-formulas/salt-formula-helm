@@ -13,11 +13,11 @@ def failure(name, message):
     }
 
 
-def present(name, chart_name, version=None, values=None):
-    exists =  __salt__['helm.release_exists'](name)
+def present(name, chart_name, namespace, version=None, values=None):
+    exists =  __salt__['helm.release_exists'](name, namespace)
     if not exists:
         result = __salt__['helm.release_create'](
-            name, chart_name, version, values)
+            name, namespace, chart_name, version, values)
         if not result:
             return failure(name, 'Failed to create release "{}"'.format(name))
         return {
@@ -29,7 +29,7 @@ def present(name, chart_name, version=None, values=None):
 
     old_values = __salt__['helm.get_values'](name)
     result = __salt__['helm.release_upgrade'](
-        name, chart_name, version, values)
+        name, namespace, chart_name, version, values)
     if not result:
         return failure(name, 'Failed to create release "{}"'.format(name))
 
@@ -54,8 +54,8 @@ def present(name, chart_name, version=None, values=None):
     }
 
 
-def absent(name):
-    exists =  __salt__['helm.release_exists'](name)
+def absent(name, namespace):
+    exists =  __salt__['helm.release_exists'](name, namespace)
     if not exists:
         return {
             'name': name,

@@ -12,18 +12,19 @@ def _helm_cmd(*args):
     }
 
 
-def release_exists(name):
-    cmd = _helm_cmd('list', '--short', '--all', name)
+def release_exists(name, namespace):
+    cmd = _helm_cmd('list', '--short', '--all', '--namespace', namespace, name)
     return __salt__['cmd.run_stdout'](**cmd) == name
 
 
-def release_create(name, chart_name, version=None, values=None):
+def release_create(name, namespace, chart_name, version=None, values=None):
     args = []
     if version is not None:
         args += ['--version', version]
     if values is not None:
         args += ['--values', '/dev/stdin']
-    cmd = _helm_cmd('install', '--name', name, chart_name, *args)
+    cmd = _helm_cmd('install', '--namespace', namespace,
+                    '--name', name, chart_name, *args)
     if values is not None:
         cmd['stdin'] = yaml.serialize(values, default_flow_style=False)
     LOG.debug('Creating release with args: %s', cmd)
@@ -35,13 +36,14 @@ def release_delete(name):
     return __salt__['cmd.retcode'](**cmd) == 0
 
 
-def release_upgrade(name, chart_name, version=None, values=None):
+def release_upgrade(name, namespace, chart_name, version=None, values=None):
     args = []
     if version is not None:
         args += ['--version', version]
     if values is not None:
         args += ['--values', '/dev/stdin']
-    cmd = _helm_cmd('upgrade', name, chart_name, *args)
+    cmd = _helm_cmd('upgrade', '--namespace', namespace,
+                    name, chart_name, *args)
     if values is not None:
         cmd['stdin'] = yaml.serialize(values, default_flow_style=False)
     LOG.debug('Upgrading release with args: %s', cmd)
