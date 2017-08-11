@@ -16,10 +16,10 @@ def failure(name, message):
 def present(name, chart_name, namespace, version=None, values=None):
     exists =  __salt__['helm.release_exists'](name, namespace)
     if not exists:
-        result = __salt__['helm.release_create'](
+        err = __salt__['helm.release_create'](
             name, namespace, chart_name, version, values)
-        if not result:
-            return failure(name, 'Failed to create release "{}"'.format(name))
+        if err:
+            return failure(name, err)
         return {
             'name': name,
             'changes': {name: 'CREATED'},
@@ -28,10 +28,10 @@ def present(name, chart_name, namespace, version=None, values=None):
         }
 
     old_values = __salt__['helm.get_values'](name)
-    result = __salt__['helm.release_upgrade'](
+    err = __salt__['helm.release_upgrade'](
         name, namespace, chart_name, version, values)
-    if not result:
-        return failure(name, 'Failed to create release "{}"'.format(name))
+    if err:
+        return failure(name, err)
 
     new_values = __salt__['helm.get_values'](name)
     if new_values == old_values:
@@ -63,9 +63,9 @@ def absent(name, namespace):
             'result': True,
             'comment': 'Release "{}" doesn\'t exist'.format(name),
         }
-    result = __salt__['helm.release_delete'](name)
-    if not result:
-        return failure(name, 'Failed to delete release "{}"'.format(name))
+    err = __salt__['helm.release_delete'](name)
+    if err:
+        return failure(name, err)
     return {
         'name': name,
         'changes': {name: 'DELETED'},

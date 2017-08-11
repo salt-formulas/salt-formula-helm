@@ -5,6 +5,16 @@ from salt.serializers import yaml
 HELM_HOME = '/srv/helm/home'
 LOG = logging.getLogger(__name__)
 
+def ok_or_output(cmd, prefix=None):
+    ret = __salt__['cmd.run_all'](**cmd)
+    if ret['retcode'] == 0:
+        return None
+    msg = "Stdout:\n{0[stdout]}\nStderr:\n{0[stderr]}".format(ret)
+    if prefix:
+        msg = prefix + ':\n' + msg
+    return msg
+
+
 def _helm_cmd(*args):
     return {
         'cmd': ('helm',) + args,
@@ -28,12 +38,12 @@ def release_create(name, namespace, chart_name, version=None, values=None):
     if values is not None:
         cmd['stdin'] = yaml.serialize(values, default_flow_style=False)
     LOG.debug('Creating release with args: %s', cmd)
-    return __salt__['cmd.retcode'](**cmd) == 0
+    return ok_or_output(cmd, 'Failed to create release "{}"'.format(name))
 
 
 def release_delete(name):
     cmd = _helm_cmd('delete', '--purge', name)
-    return __salt__['cmd.retcode'](**cmd) == 0
+    return ok_or_output(cmd, 'Failed to delete release "{}"'.format(name))
 
 
 def release_upgrade(name, namespace, chart_name, version=None, values=None):
@@ -47,7 +57,7 @@ def release_upgrade(name, namespace, chart_name, version=None, values=None):
     if values is not None:
         cmd['stdin'] = yaml.serialize(values, default_flow_style=False)
     LOG.debug('Upgrading release with args: %s', cmd)
-    return __salt__['cmd.retcode'](**cmd) == 0
+    return ok_or_output(cmd, 'Failed to upgrade release "{}"'.format(name))
 
 
 def get_values(name):
