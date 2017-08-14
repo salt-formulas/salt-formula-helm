@@ -22,12 +22,13 @@ def _helm_cmd(*args):
     }
 
 
-def release_exists(name, namespace):
+def release_exists(name, namespace='default'):
     cmd = _helm_cmd('list', '--short', '--all', '--namespace', namespace, name)
     return __salt__['cmd.run_stdout'](**cmd) == name
 
 
-def release_create(name, namespace, chart_name, version=None, values=None):
+def release_create(name, chart_name, namespace='default',
+                   version=None, values=None):
     args = []
     if version is not None:
         args += ['--version', version]
@@ -46,7 +47,8 @@ def release_delete(name):
     return ok_or_output(cmd, 'Failed to delete release "{}"'.format(name))
 
 
-def release_upgrade(name, namespace, chart_name, version=None, values=None):
+def release_upgrade(name, chart_name, namespace='default',
+                    version=None, values=None):
     args = []
     if version is not None:
         args += ['--version', version]

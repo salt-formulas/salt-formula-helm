@@ -17,7 +17,7 @@ def present(name, chart_name, namespace, version=None, values=None):
     exists =  __salt__['helm.release_exists'](name, namespace)
     if not exists:
         err = __salt__['helm.release_create'](
-            name, namespace, chart_name, version, values)
+            name, chart_name, namespace, version, values)
         if err:
             return failure(name, err)
         return {
@@ -29,7 +29,7 @@ def present(name, chart_name, namespace, version=None, values=None):
 
     old_values = __salt__['helm.get_values'](name)
     err = __salt__['helm.release_upgrade'](
-        name, namespace, chart_name, version, values)
+        name, chart_name, namespace, version, values)
     if err:
         return failure(name, err)
 
