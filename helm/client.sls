@@ -46,6 +46,7 @@ prepare_client:
     - require:
       - file: /usr/bin/helm
 
+{%- if client.tiller.install %}
 install_tiller:
   cmd.run:
     - name: helm init --upgrade
@@ -62,6 +63,7 @@ wait_for_tiller:
       - HELM_HOME: {{ helm_home }}
     - onchanges:
       - cmd: install_tiller
+{%- endif %}
 
 {%- for repo_name, repo_url in client.repos.items() %}
 ensure_{{ repo_name }}_repo:
@@ -92,7 +94,9 @@ ensure_{{ release_id }}_release:
         {{ release['values']|yaml(False)|indent(8) }}
     {%- endif %}
     - require:
+{%- if client.tiller.install %}
       - cmd: wait_for_tiller
+{%- endif %}
       - cmd: ensure_{{ namespace }}_namespace
     {%- do namespaces.append(namespace) %}
 {%- else %}{# not release.enabled #}
@@ -100,6 +104,11 @@ absent_{{ release_id }}_release:
   helm_release.absent:
     - name: {{ release_name }}
     - namespace: {{ namespace }}
+    - require:
+{%- if client.tiller.install %}
+      - cmd: wait_for_tiller
+{%- endif %}
+      - cmd: prepare_client
 {%- endif %}{# release.enabled #}
 {%- endfor %}{# release_id, release in client.releases #}
 
