@@ -4,6 +4,13 @@
 {%- set helm_tmp = "/tmp/helm-" + client.version %}
 {%- set helm_bin = "/usr/bin/helm-" + client.version %}
 {%- set helm_home = "/srv/helm/home" %}
+{%- if client.tiller.host %}
+{%- set helm_run = "helm --host '{}'".format(client.tiller.host) %}
+{%- set tiller_arg = "- tiller_host: \"{}\"".format(client.tiller.host) %}
+{%- else %}
+{%- set helm_run = "helm --tiller-namespace '{}'".format(client.tiller.namespace) %}
+{%- set tiller_arg = "- tiller_namespace: \"{}\"".format(client.tiller.namespace) %}
+{%- endif %}
 
 {{ helm_tmp }}:
   file.directory:
@@ -39,7 +46,7 @@
 
 prepare_client:
   cmd.run:
-    - name: helm init --client-only
+    - name: {{ helm_run }} init --client-only
     - env:
       - HELM_HOME: {{ helm_home }}
     - unless: test -d {{ helm_home }}
@@ -49,16 +56,16 @@ prepare_client:
 {%- if client.tiller.install %}
 install_tiller:
   cmd.run:
-    - name: helm init --upgrade
+    - name: {{ helm_run }} init --upgrade
     - env:
       - HELM_HOME: {{ helm_home }}
-    - unless: "helm version --server --short | grep -E 'Server: v{{ client.version }}(\\+|$)'"
+    - unless: "{{ helm_run }} version --server --short | grep -E 'Server: v{{ client.version }}(\\+|$)'"
     - require:
       - cmd: prepare_client
 
 wait_for_tiller:
   cmd.run:
-    - name: while ! helm list; do sleep 3; done
+    - name: while ! {{ helm_run }} list; do sleep 3; done
     - env:
       - HELM_HOME: {{ helm_home }}
     - onchanges:
@@ -68,10 +75,10 @@ wait_for_tiller:
 {%- for repo_name, repo_url in client.repos.items() %}
 ensure_{{ repo_name }}_repo:
   cmd.run:
-    - name: helm repo add {{ repo_name }} {{ repo_url }}
+    - name: {{ helm_run }} repo add {{ repo_name }} {{ repo_url }}
     - env:
       - HELM_HOME: {{ helm_home }}
-    - unless: helm repo list | grep '^{{ repo_name }}[[:space:]]{{ repo_url|replace(".", "\.") }}'
+    - unless: {{ helm_run }} repo list | grep '^{{ repo_name }}[[:space:]]{{ repo_url|replace(".", "\.") }}'
     - require:
       - cmd: prepare_client
 {%- endfor %}
@@ -86,6 +93,7 @@ ensure_{{ release_id }}_release:
     - name: {{ release_name }}
     - chart_name: {{ release['chart'] }}
     - namespace: {{ namespace }}
+    {{ tiller_arg }}
     {%- if release.get('version') %}
     - version: {{ release['version'] }}
     {%- endif %}
@@ -104,6 +112,7 @@ absent_{{ release_id }}_release:
   helm_release.absent:
     - name: {{ release_name }}
     - namespace: {{ namespace }}
+    {{ tiller_arg }}
     - require:
 {%- if client.tiller.install %}
       - cmd: wait_for_tiller

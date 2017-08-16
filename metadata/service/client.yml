@@ -11,5 +11,7 @@ parameters:
       download_hash: sha256=96f74ff04ec7eb38e5f53aba73132bfe4d6b81168f20574dad25a9bcaceec81b
       tiller:
         install: true
+        namespace: kube-system
+        host:
       repos: {}
       releases: {}

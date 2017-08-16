@@ -1,5 +1,4 @@
 import difflib
-import logging
 
 from salt.serializers import yaml
 
@@ -13,11 +12,16 @@ def failure(name, message):
     }
 
 
-def present(name, chart_name, namespace, version=None, values=None):
-    exists =  __salt__['helm.release_exists'](name, namespace)
+def present(name, chart_name, namespace, version=None, values=None,
+            tiller_namespace='kube-system', tiller_host=None):
+    tiller_args = {
+        'tiller_namespace': tiller_namespace,
+        'tiller_host': tiller_host,
+    }
+    exists = __salt__['helm.release_exists'](name, namespace, **tiller_args)
     if not exists:
         err = __salt__['helm.release_create'](
-            name, chart_name, namespace, version, values)
+            name, chart_name, namespace, version, values, **tiller_args)
         if err:
             return failure(name, err)
         return {
@@ -27,13 +31,13 @@ def present(name, chart_name, namespace, version=None, values=None):
             'comment': 'Release "{}" was created'.format(name),
         }
 
-    old_values = __salt__['helm.get_values'](name)
+    old_values = __salt__['helm.get_values'](name, **tiller_args)
     err = __salt__['helm.release_upgrade'](
-        name, chart_name, namespace, version, values)
+        name, chart_name, namespace, version, values, **tiller_args)
     if err:
         return failure(name, err)
 
-    new_values = __salt__['helm.get_values'](name)
+    new_values = __salt__['helm.get_values'](name, **tiller_args)
     if new_values == old_values:
         return {
             'name': name,
@@ -54,8 +58,12 @@ def present(name, chart_name, namespace, version=None, values=None):
     }
 
 
-def absent(name, namespace):
-    exists =  __salt__['helm.release_exists'](name, namespace)
+def absent(name, namespace, tiller_namespace='kube-system', tiller_host=None):
+    tiller_args = {
+        'tiller_namespace': tiller_namespace,
+        'tiller_host': tiller_host,
+    }
+    exists = __salt__['helm.release_exists'](name, namespace, **tiller_args)
     if not exists:
         return {
             'name': name,
@@ -63,7 +71,7 @@ def absent(name, namespace):
             'result': True,
             'comment': 'Release "{}" doesn\'t exist'.format(name),
         }
-    err = __salt__['helm.release_delete'](name)
+    err = __salt__['helm.release_delete'](name, **tiller_args)
     if err:
         return failure(name, err)
     return {
