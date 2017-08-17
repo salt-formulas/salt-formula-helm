@@ -3,6 +3,7 @@
 
 {%- set helm_tmp = "/tmp/helm-" + client.version %}
 {%- set helm_bin = "/usr/bin/helm-" + client.version %}
+{%- set kubectl_bin = "/usr/bin/kubectl" %}
 {%- set helm_home = "/srv/helm/home" %}
 {%- if client.tiller.host %}
 {%- set helm_run = "helm --host '{}'".format(client.tiller.host) %}
@@ -121,11 +122,41 @@ absent_{{ release_id }}_release:
 {%- endif %}{# release.enabled #}
 {%- endfor %}{# release_id, release in client.releases #}
 
+{%- if client.kubectl.install %}
+extract_kubectl:
+  archive.extracted:
+    - name: {{ helm_tmp }}
+    - source: {{ client.kubectl.download_url }}
+    - source_hash: {{ client.kubectl.download_hash }}
+    - archive_format: tar
+    {%- if grains['saltversioninfo'] < [2016, 11] %}
+    - tar_options: v
+    {%- else %}
+    - options: v
+    {%- endif %}
+    - if_missing: {{ helm_tmp }}/{{ client.kubectl.tarball_path }}
+    - require:
+      - file: {{ helm_tmp }}
+
+{{ kubectl_bin }}:
+  file.managed:
+    - source: {{ helm_tmp }}/{{ client.kubectl.tarball_path }}
+    - mode: 555
+    - user: root
+    - group: root
+    - require:
+      - archive: extract_kubectl
+{%- endif %}{# client.kubectl.install #}
+
 {%- for namespace in namespaces %}
 ensure_{{ namespace }}_namespace:
   cmd.run:
     - name: kubectl create namespace {{ namespace }}
     - unless: kubectl get namespace {{ namespace }}
+    {%- if client.kubectl.install %}
+    - require:
+      - file: {{ kubectl_bin }}
+    {%- endif %}
 {%- endfor %}
 
 {%- endif %}
