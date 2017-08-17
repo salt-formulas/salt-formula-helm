@@ -18,5 +18,8 @@ parameters:
         download_url: https://dl.k8s.io/v1.6.7/kubernetes-client-linux-amd64.tar.gz
         download_hash: sha256=54947ef84181e89f9dbacedd54717cbed5cc7f9c36cb37bc8afc9097648e2c91
         tarball_path: kubernetes/client/bin/kubectl
+        config:
+          cluster: {}
+          user: {}
       repos: {}
       releases: {}

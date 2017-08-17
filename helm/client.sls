@@ -4,6 +4,7 @@
 {%- set helm_tmp = "/tmp/helm-" + client.version %}
 {%- set helm_bin = "/usr/bin/helm-" + client.version %}
 {%- set kubectl_bin = "/usr/bin/kubectl" %}
+{%- set kube_config = "/srv/helm/kubeconfig.yaml" %}
 {%- set helm_home = "/srv/helm/home" %}
 {%- if client.tiller.host %}
 {%- set helm_run = "helm --host '{}'".format(client.tiller.host) %}
@@ -54,21 +55,34 @@ prepare_client:
     - require:
       - file: /usr/bin/helm
 
+{{ kube_config }}:
+  file.managed:
+    - source: salt://helm/files/kubeconfig.yaml.j2
+    - mode: 400
+    - user: root
+    - group: root
+    - template: jinja
+
 {%- if client.tiller.install %}
 install_tiller:
   cmd.run:
     - name: {{ helm_run }} init --upgrade
     - env:
       - HELM_HOME: {{ helm_home }}
+      - KUBECONFIG: {{ kube_config }}
     - unless: "{{ helm_run }} version --server --short | grep -E 'Server: v{{ client.version }}(\\+|$)'"
     - require:
       - cmd: prepare_client
+      - file: {{ kube_config }}
 
 wait_for_tiller:
   cmd.run:
     - name: while ! {{ helm_run }} list; do sleep 3; done
     - env:
       - HELM_HOME: {{ helm_home }}
+      - KUBECONFIG: {{ kube_config }}
+    - require:
+      - file: {{ kube_config }}
     - onchanges:
       - cmd: install_tiller
 {%- endif %}
@@ -94,6 +108,7 @@ ensure_{{ release_id }}_release:
     - name: {{ release_name }}
     - chart_name: {{ release['chart'] }}
     - namespace: {{ namespace }}
+    - kube_config: {{ kube_config }}
     {{ tiller_arg }}
     {%- if release.get('version') %}
     - version: {{ release['version'] }}
@@ -113,6 +128,7 @@ absent_{{ release_id }}_release:
   helm_release.absent:
     - name: {{ release_name }}
     - namespace: {{ namespace }}
+    - kube_config: {{ kube_config }}
     {{ tiller_arg }}
     - require:
 {%- if client.tiller.install %}
@@ -153,8 +169,11 @@ ensure_{{ namespace }}_namespace:
   cmd.run:
     - name: kubectl create namespace {{ namespace }}
     - unless: kubectl get namespace {{ namespace }}
-    {%- if client.kubectl.install %}
+    - env:
+      - KUBECONFIG: {{ kube_config }}
     - require:
+      - file: {{ kube_config }}
+    {%- if client.kubectl.install %}
       - file: {{ kubectl_bin }}
     {%- endif %}
 {%- endfor %}
