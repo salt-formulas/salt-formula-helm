@@ -23,6 +23,9 @@ def _helm_cmd(*args, **tiller_kwargs):
     env = {'HELM_HOME': HELM_HOME}
     if tiller_kwargs['kube_config']:
         env['KUBECONFIG'] = tiller_kwargs['kube_config']
+    if tiller_kwargs['gce_service_token']:
+        env['GOOGLE_APPLICATION_CREDENTIALS'] = \
+            tiller_kwargs['gce_service_token']
     return {
         'cmd': ('helm',) + tiller_args + args,
         'env': env,
@@ -31,21 +34,23 @@ def _helm_cmd(*args, **tiller_kwargs):
 
 def release_exists(name, namespace='default',
                    tiller_namespace='kube-system', tiller_host=None,
-                   kube_config=None):
+                   kube_config=None, gce_service_token=None):
     cmd = _helm_cmd('list', '--short', '--all', '--namespace', namespace, name,
                     tiller_namespace=tiller_namespace, tiller_host=tiller_host,
-                    kube_config=kube_config)
+                    kube_config=kube_config,
+                    gce_service_token=gce_service_token)
     return __salt__['cmd.run_stdout'](**cmd) == name
 
 
 def release_create(name, chart_name, namespace='default',
                    version=None, values=None,
                    tiller_namespace='kube-system', tiller_host=None,
-                   kube_config=None):
+                   kube_config=None, gce_service_token=None):
     tiller_args = {
         'tiller_namespace': tiller_namespace,
         'tiller_host': tiller_host,
         'kube_config': kube_config,
+        'gce_service_token': gce_service_token,
     }
     args = []
     if version is not None:
@@ -61,21 +66,23 @@ def release_create(name, chart_name, namespace='default',
 
 
 def release_delete(name, tiller_namespace='kube-system', tiller_host=None,
-                   kube_config=None):
+                   kube_config=None, gce_service_token=None):
     cmd = _helm_cmd('delete', '--purge', name,
                     tiller_namespace=tiller_namespace, tiller_host=tiller_host,
-                    kube_config=kube_config)
+                    kube_config=kube_config,
+                    gce_service_token=gce_service_token)
     return ok_or_output(cmd, 'Failed to delete release "{}"'.format(name))
 
 
 def release_upgrade(name, chart_name, namespace='default',
                     version=None, values=None,
                     tiller_namespace='kube-system', tiller_host=None,
-                    kube_config=None):
+                    kube_config=None, gce_service_token=None):
     tiller_args = {
         'tiller_namespace': tiller_namespace,
         'tiller_host': tiller_host,
         'kube_config': kube_config,
+        'gce_service_token': gce_service_token,
     }
     args = []
     if version is not None:
@@ -91,8 +98,9 @@ def release_upgrade(name, chart_name, namespace='default',
 
 
 def get_values(name, tiller_namespace='kube-system', tiller_host=None,
-               kube_config=None):
+               kube_config=None, gce_service_token=None):
     cmd = _helm_cmd('get', 'values', '--all', name,
                     tiller_namespace=tiller_namespace, tiller_host=tiller_host,
-                    kube_config=kube_config)
+                    kube_config=kube_config,
+                    gce_service_token=gce_service_token)
     return yaml.deserialize(__salt__['cmd.run_stdout'](**cmd))

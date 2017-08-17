@@ -21,5 +21,6 @@ parameters:
         config:
           cluster: {}
           user: {}
+          gce_service_token:
       repos: {}
       releases: {}

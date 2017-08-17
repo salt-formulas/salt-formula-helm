@@ -5,6 +5,18 @@
 {%- set helm_bin = "/usr/bin/helm-" + client.version %}
 {%- set kubectl_bin = "/usr/bin/kubectl" %}
 {%- set kube_config = "/srv/helm/kubeconfig.yaml" %}
+
+{%- if client.kubectl.config.gce_service_token %}
+{%- set gce_service_token = "/srv/helm/gce_token.json" %}
+{%- set gce_env_var = "- GOOGLE_APPLICATION_CREDENTIALS: \"{}\"".format(gce_service_token) %}
+{%- set gce_state_arg = "- gce_service_token: \"{}\"".format(gce_service_token) %}
+{%- set gce_require = "- file: \"{}\"".format(gce_service_token) %}
+{%- else %}
+{%- set gce_env_var = "" %}
+{%- set gce_state_arg = "" %}
+{%- set gce_require = "" %}
+{%- endif %}
+
 {%- set helm_home = "/srv/helm/home" %}
 {%- if client.tiller.host %}
 {%- set helm_run = "helm --host '{}'".format(client.tiller.host) %}
@@ -63,6 +75,18 @@ prepare_client:
     - group: root
     - template: jinja
 
+{%- if client.kubectl.config.gce_service_token %}
+{{ gce_service_token }}:
+  file.managed:
+    - source: salt://helm/files/gce_token.json.j2
+    - mode: 400
+    - user: root
+    - group: root
+    - template: jinja
+    - context:
+        content: {{ client.kubectl.config.gce_service_token }}
+{%- endif %}
+
 {%- if client.tiller.install %}
 install_tiller:
   cmd.run:
@@ -70,10 +94,12 @@ install_tiller:
     - env:
       - HELM_HOME: {{ helm_home }}
       - KUBECONFIG: {{ kube_config }}
+      {{ gce_env_var }}
     - unless: "{{ helm_run }} version --server --short | grep -E 'Server: v{{ client.version }}(\\+|$)'"
     - require:
       - cmd: prepare_client
       - file: {{ kube_config }}
+      {{ gce_require }}
 
 wait_for_tiller:
   cmd.run:
@@ -81,8 +107,10 @@ wait_for_tiller:
     - env:
       - HELM_HOME: {{ helm_home }}
       - KUBECONFIG: {{ kube_config }}
+      {{ gce_env_var }}
     - require:
       - file: {{ kube_config }}
+      {{ gce_require }}
     - onchanges:
       - cmd: install_tiller
 {%- endif %}
@@ -110,6 +138,7 @@ ensure_{{ release_id }}_release:
     - namespace: {{ namespace }}
     - kube_config: {{ kube_config }}
     {{ tiller_arg }}
+    {{ gce_state_arg }}
     {%- if release.get('version') %}
     - version: {{ release['version'] }}
     {%- endif %}
@@ -122,6 +151,7 @@ ensure_{{ release_id }}_release:
       - cmd: wait_for_tiller
 {%- endif %}
       - cmd: ensure_{{ namespace }}_namespace
+      {{ gce_require }}
     {%- do namespaces.append(namespace) %}
 {%- else %}{# not release.enabled #}
 absent_{{ release_id }}_release:
@@ -130,10 +160,12 @@ absent_{{ release_id }}_release:
     - namespace: {{ namespace }}
     - kube_config: {{ kube_config }}
     {{ tiller_arg }}
+    {{ gce_state_arg }}
     - require:
 {%- if client.tiller.install %}
       - cmd: wait_for_tiller
 {%- endif %}
+      {{ gce_require }}
       - cmd: prepare_client
 {%- endif %}{# release.enabled #}
 {%- endfor %}{# release_id, release in client.releases #}
@@ -171,8 +203,10 @@ ensure_{{ namespace }}_namespace:
     - unless: kubectl get namespace {{ namespace }}
     - env:
       - KUBECONFIG: {{ kube_config }}
+      {{ gce_env_var }}
     - require:
       - file: {{ kube_config }}
+      {{ gce_require }}
     {%- if client.kubectl.install %}
       - file: {{ kubectl_bin }}
     {%- endif %}

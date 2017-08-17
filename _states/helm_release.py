@@ -14,11 +14,12 @@ def failure(name, message):
 
 def present(name, chart_name, namespace, version=None, values=None,
             tiller_namespace='kube-system', tiller_host=None,
-            kube_config=None):
+            kube_config=None, gce_service_token=None):
     tiller_args = {
         'tiller_namespace': tiller_namespace,
         'tiller_host': tiller_host,
         'kube_config': kube_config,
+        'gce_service_token': gce_service_token,
     }
     exists = __salt__['helm.release_exists'](name, namespace, **tiller_args)
     if not exists:
@@ -61,11 +62,12 @@ def present(name, chart_name, namespace, version=None, values=None,
 
 
 def absent(name, namespace, tiller_namespace='kube-system', tiller_host=None,
-           kube_config=None):
+           kube_config=None, gce_service_token=None):
     tiller_args = {
         'tiller_namespace': tiller_namespace,
         'tiller_host': tiller_host,
         'kube_config': kube_config,
+        'gce_service_token': gce_service_token,
     }
     exists = __salt__['helm.release_exists'](name, namespace, **tiller_args)
     if not exists:
