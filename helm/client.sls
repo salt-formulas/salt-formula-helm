@@ -152,7 +152,7 @@ ensure_{{ release_id }}_release:
 {%- endif %}
       - cmd: ensure_{{ namespace }}_namespace
       {{ gce_require }}
-    {%- do namespaces.append(namespace) %}
+    {%- do namespaces.append((namespace, None)) %}
 {%- else %}{# not release.enabled #}
 absent_{{ release_id }}_release:
   helm_release.absent:
@@ -196,7 +196,7 @@ extract_kubectl:
       - archive: extract_kubectl
 {%- endif %}{# client.kubectl.install #}
 
-{%- for namespace in namespaces %}
+{%- for namespace in dict(namespaces) %}
 ensure_{{ namespace }}_namespace:
   cmd.run:
     - name: kubectl create namespace {{ namespace }}
