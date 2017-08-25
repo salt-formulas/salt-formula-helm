@@ -36,7 +36,7 @@ master_doc = 'index'
 
 # General information about the project.
 project = u'salt-formula-helm'
-copyright = u'2016, Mirantis Inc.'
+copyright = u'2017, Mirantis Inc.'
 
 # If true, '()' will be appended to :func: etc. cross-reference text.
 add_function_parentheses = True

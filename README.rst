@@ -1,6 +1,6 @@
 
 ==================================
-helm
+Helm Formula README
 ==================================
 
 This formula installs Helm client, installs Tiller on Kubernetes cluster and
