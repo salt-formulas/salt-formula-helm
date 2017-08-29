@@ -27,12 +27,11 @@ provisioner:
   grains:
     noservices: True
 
-
 platforms:
-  - name: ubuntu-14.04
-  - name: ubuntu-16.04
-  - name: centos-7.1
-
+  - name: <%=ENV['PLATFORM'] || 'ubuntu-xenial'%>
+    driver_config:
+      image: <%=ENV['PLATFORM'] || 'trevorj/salty-whales:xenial'%>
+      platform: ubuntu
 
 verifier:
   name: inspec
@@ -40,9 +39,9 @@ verifier:
 
 
 suites:
-  - name: default
-  #  provisioner:
-  #    pillars-from-files:
-  #      helm.sls: tests/pillar/default.sls
+  - name: single
+    provisioner:
+      pillars-from-files:
+        helm.sls: tests/pillar/single.sls        
 
 # vim: ft=yaml sw=2 ts=2 sts=2 tw=125
