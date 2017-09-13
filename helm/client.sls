@@ -104,6 +104,7 @@ install_tiller:
 wait_for_tiller:
   cmd.run:
     - name: while ! {{ helm_run }} list; do sleep 3; done
+    - timeout: 30
     - env:
       - HELM_HOME: {{ helm_home }}
       - KUBECONFIG: {{ kube_config }}
