@@ -87,6 +87,20 @@ prepare_client:
         content: {{ client.kubectl.config.gce_service_token }}
 {%- endif %}
 
+helm_env_home_param:
+   environ.setenv:
+   - name: HELM_HOME
+   - value: {{ helm_home }}
+   - update_minion: True
+
+helm_env_kubeconfig_param:
+   environ.setenv:
+   - name: KUBECONFIG
+   - value: {{ kube_config }}
+   - update_minion: True
+   - require:
+     - environ: helm_env_home_param
+
 {%- if client.tiller.install %}
 install_tiller:
   cmd.run:
@@ -99,6 +113,7 @@ install_tiller:
     - require:
       - cmd: prepare_client
       - file: {{ kube_config }}
+      - environ: helm_env_kubeconfig_param
       {{ gce_require }}
 
 wait_for_tiller:
@@ -206,6 +221,7 @@ ensure_{{ namespace }}_namespace:
       {{ gce_env_var }}
     - require:
       - file: {{ kube_config }}
+      - environ: helm_env_kubeconfig_param
       {{ gce_require }}
     {%- if client.kubectl.install %}
       - file: {{ kubectl_bin }}
