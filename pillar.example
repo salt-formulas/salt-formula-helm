@@ -7,14 +7,26 @@ helm:
     # version: 2.6.2
     
     #
+    # The flavor of the helm or kubectl binary to install, as informed by the
+    # target minion's OS. For available flavor names, peruse the listing of
+    # Helm binaries exposed at:
+    # 
+    #   https://storage.googleapis.com/kubernetes-helm
+    #   
+    # Defaults to linux-amd64
+    #
+    # flavor: linux-amd64
+
+    #
     # The hash for the helm client binary. You must calculate the hash for the
-    # version of the binary you install. 
-    # Defaults to the SHA 256 hash for the helm-v2.6.2-linux-amd64.tar.gz
+    # version and flavor of the binary you install (per the helm:client:flavor 
+    # configuration value)
+    # Defaults to the SHA 256 hash for the helm-v2.6.2-linux-amd64.tar.gz binary
     # 
     # 
     # The binary is downloaded from:
     # 
-    # https://storage.googleapis.com/kubernetes-helm/helm-v[[ client.version ]]-linux-amd64.tar.gz
+    # https://storage.googleapis.com/kubernetes-helm/helm-v[[ client.version ]]-[[ client.flavor ]].tar.gz
     # 
     # Here is an example command you can use to calculate the sha256 hash for 
     # the binary:
@@ -67,12 +79,13 @@ helm:
 
       #
       # The hash for the kubectl binary version to install. You must calculate 
-      # the hash for the version of the binary you install. 
+      # the hash for the version and flavor of the binary you install (per the
+      # helm:client:flavor configuration value)
       # 
       # 
       # The binary is downloaded from:
       # 
-      # https://dl.k8s.io/v[[ client.kubectl.version ]]/kubernetes-client-linux-amd64.tar.gz
+      # https://dl.k8s.io/v[[ client.kubectl.version ]]/kubernetes-client-[[ client.flavor ]].tar.gz
       # 
       # 
       # Defaults to the SHA 256 hash for the Linux distribution of version 1.6.7
@@ -81,7 +94,7 @@ helm:
       # the binary:
       # 
       # ```
-      # shasum -a 256 /path/to/kubernetes-client-linux-amd64.tar.gz
+      # shasum -a 256 /path/to/kubernetes-client-[[ client.flavor ]].tar.gz
       # ```
       # 
       # download_hash: sha256=54947ef84181e89f9dbacedd54717cbed5cc7f9c36cb37bc8afc9097648e2c91

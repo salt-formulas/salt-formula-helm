@@ -4,7 +4,7 @@
 extract_kubectl:
   archive.extracted:
     - name: {{ constants.helm.tmp }}/kubectl/v{{ config.kubectl.version }}
-    - source: https://dl.k8s.io/v{{ config.kubectl.version }}/kubernetes-client-linux-amd64.tar.gz
+    - source: https://dl.k8s.io/v{{ config.kubectl.version }}/kubernetes-client-{{ config.flavor }}.tar.gz
     - source_hash: {{ config.kubectl.download_hash }}
     - archive_format: tar
     {%- if grains['saltversioninfo'] < [2016, 11] %}

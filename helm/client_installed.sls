@@ -8,7 +8,7 @@ include:
     - user: root
     - group: root
   archive.extracted:
-    - source: https://storage.googleapis.com/kubernetes-helm/helm-v{{ config.version }}-linux-amd64.tar.gz
+    - source: https://storage.googleapis.com/kubernetes-helm/helm-v{{ config.version }}-{{ config.flavor }}.tar.gz
     - source_hash: {{ config.download_hash }}
     - archive_format: tar
     {%- if grains['saltversioninfo'] < [2016, 11] %}
@@ -16,13 +16,13 @@ include:
     {%- else %}
     - options: v
     {%- endif %}
-    - if_missing: {{ constants.helm.tmp }}/linux-amd64/helm
+    - if_missing: {{ constants.helm.tmp }}/{{ config.flavor }}/helm
     - require:
       - file: {{ constants.helm.tmp }}
 
 {{ constants.helm.bin }}:
   file.managed:
-    - source: {{ constants.helm.tmp }}/linux-amd64/helm
+    - source: {{ constants.helm.tmp }}/{{ config.flavor }}/helm
     - mode: 555
     - user: root
     - group: root
