@@ -183,7 +183,6 @@ ensure_{{ repo_name }}_repo:
 {%- endif %}{# "repos" in client #}
 
 {%- if "releases" in client %}
-{%- set namespaces = [] %}
 {%- for release_id, release in client.releases.items() %}
 {%- set release_name = release.get('name', release_id) %}
 {%- set namespace = release.get('namespace', 'default') %}
@@ -209,9 +208,7 @@ ensure_{{ release_id }}_release:
 {%- if client.tiller.install %}
       - cmd: wait_for_tiller
 {%- endif %}
-      - cmd: ensure_{{ namespace }}_namespace
       {{ gce_require }}
-    {%- do namespaces.append(namespace) %}
 {%- else %}{# not release.enabled #}
 absent_{{ release_id }}_release:
   helm_release.absent:
@@ -231,25 +228,5 @@ absent_{{ release_id }}_release:
 {%- endif %}{# release.enabled #}
 {%- endfor %}{# release_id, release in client.releases #}
 {%- endif %}{# "releases" in client #}
-
-{%- for namespace in namespaces %}
-ensure_{{ namespace }}_namespace:
-  cmd.run:
-    - name: kubectl create namespace {{ namespace }}
-    - unless: kubectl get namespace {{ namespace }}
-    - env:
-      {{ gce_env_var }}
-      {%- if client.kubectl.install %}
-      - KUBECONFIG: {{ kube_config }}
-      {%- endif %}
-    {%- if gce_require != "" or client.kubectl.install %}
-    - require:
-      {{ gce_require }}
-      {%- if client.kubectl.install %}
-      - file: {{ kube_config }}
-      - file: {{ kubectl_bin }}
-      {%- endif %}
-    {%- endif %}
-{%- endfor %}
 
 {%- endif %}
