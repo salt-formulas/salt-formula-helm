@@ -18,14 +18,9 @@ Example Configurations
 _The following examples demonstrate configuring the formula for different
 use cases._
 
-Enable formula, install helm client on node and tiller on Kubernetes (assuming
-already configured kubectl config or local cluster endpoint):
-
-.. code-block:: yaml
-
-    helm:
-      client:
-        enabled: true
+The default pillar configuration will install the helm client on the target 
+node, and Tiller to the Kubernetes cluster (assuming kubectl config or local 
+cluster endpoint have already been configured.
 
 Change version of helm being downloaded and installed:
 

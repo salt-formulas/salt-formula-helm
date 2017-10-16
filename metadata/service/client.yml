@@ -5,7 +5,6 @@ classes:
 parameters:
   helm:
     client:
-      enabled: true
       version: 2.4.2
       download_hash: sha256=96f74ff04ec7eb38e5f53aba73132bfe4d6b81168f20574dad25a9bcaceec81b
       tiller:
