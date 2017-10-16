@@ -1,24 +1,26 @@
 {%- from "helm/map.jinja" import client with context %}
 {%- if client.enabled %}
 
-{%- set helm_tmp = "/tmp/helm-" + client.version %}
-{%- set helm_bin = "/usr/bin/helm-" + client.version %}
+{%- set helm_tmp = "/tmp/helm-v" + client.version %}
+{%- set helm_bin = "/usr/bin/helm-v" + client.version %}
 {%- set kubectl_bin = "/usr/bin/kubectl" %}
 {%- set kube_config = "/srv/helm/kubeconfig.yaml" %}
 
-{%- if client.kubectl.config.gce_service_token %}
-{%- set gce_service_token = "/srv/helm/gce_token.json" %}
-{%- set gce_env_var = "- GOOGLE_APPLICATION_CREDENTIALS: \"{}\"".format(gce_service_token) %}
-{%- set gce_state_arg = "- gce_service_token: \"{}\"".format(gce_service_token) %}
-{%- set gce_require = "- file: \"{}\"".format(gce_service_token) %}
-{%- else %}
+{%- set gce_service_token = None %}
 {%- set gce_env_var = "" %}
 {%- set gce_state_arg = "" %}
 {%- set gce_require = "" %}
+{%- if client.kubectl.install and 
+       "gce_service_token" in client.kubectl.config %}
+{%- set gce_service_token = client.kubectl.config.gce_service_token %}
+{%- set gce_service_token_path = "/srv/helm/gce_token.json" %}
+{%- set gce_env_var = "- GOOGLE_APPLICATION_CREDENTIALS: \"{}\"".format(gce_service_token_path) %}
+{%- set gce_state_arg = "- gce_service_token: \"{}\"".format(gce_service_token_path) %}
+{%- set gce_require = "- file: \"{}\"".format(gce_service_token_path) %}
 {%- endif %}
 
 {%- set helm_home = "/srv/helm/home" %}
-{%- if client.tiller.host %}
+{%- if "host" in client.tiller %}
 {%- set helm_run = "helm --host '{}'".format(client.tiller.host) %}
 {%- set tiller_arg = "- tiller_host: \"{}\"".format(client.tiller.host) %}
 {%- else %}
@@ -31,7 +33,7 @@
     - user: root
     - group: root
   archive.extracted:
-    - source: {{ client.download_url }}
+    - source: https://storage.googleapis.com/kubernetes-helm/helm-v{{ client.version }}-linux-amd64.tar.gz
     - source_hash: {{ client.download_hash }}
     - archive_format: tar
     {%- if grains['saltversioninfo'] < [2016, 11] %}
@@ -54,7 +56,7 @@
 
 /usr/bin/helm:
   file.symlink:
-    - target: helm-{{ client.version }}
+    - target: helm-v{{ client.version }}
     - require:
       - file: {{ helm_bin }}
 
@@ -67,6 +69,7 @@ prepare_client:
     - require:
       - file: /usr/bin/helm
 
+{%- if client.kubectl.install %}
 {{ kube_config }}:
   file.managed:
     - source: salt://helm/files/kubeconfig.yaml.j2
@@ -75,8 +78,8 @@ prepare_client:
     - group: root
     - template: jinja
 
-{%- if client.kubectl.config.gce_service_token %}
-{{ gce_service_token }}:
+{%- if gce_service_token %}
+{{ gce_service_token_path }}:
   file.managed:
     - source: salt://helm/files/gce_token.json.j2
     - mode: 400
@@ -84,8 +87,33 @@ prepare_client:
     - group: root
     - template: jinja
     - context:
-        content: {{ client.kubectl.config.gce_service_token }}
-{%- endif %}
+        content: {{ gce_service_token }}
+{%- endif %}{# gce_service_token #}
+
+extract_kubectl:
+  archive.extracted:
+    - name: {{ helm_tmp }}/kubectl/v{{ client.kubectl.version }}
+    - source: https://dl.k8s.io/v{{ client.kubectl.version }}/kubernetes-client-linux-amd64.tar.gz
+    - source_hash: {{ client.kubectl.download_hash }}
+    - archive_format: tar
+    {%- if grains['saltversioninfo'] < [2016, 11] %}
+    - tar_options: v
+    {%- else %}
+    - options: v
+    {%- endif %}
+    - if_missing: {{ helm_tmp }}/kubectl/v{{ client.kubectl.version }}
+    - require:
+      - file: {{ helm_tmp }}
+
+{{ kubectl_bin }}:
+  file.managed:
+    - source: {{ helm_tmp }}/kubectl/v{{ client.kubectl.version }}/kubernetes/client/bin/kubectl
+    - mode: 555
+    - user: root
+    - group: root
+    - require:
+      - archive: extract_kubectl
+{%- endif %}{# client.kubectl.install #}
 
 helm_env_home_param:
    environ.setenv:
@@ -107,13 +135,17 @@ install_tiller:
     - name: {{ helm_run }} init --upgrade
     - env:
       - HELM_HOME: {{ helm_home }}
+      {%- if client.kubectl.install %}
       - KUBECONFIG: {{ kube_config }}
+      {%- endif %}
       {{ gce_env_var }}
     - unless: "{{ helm_run }} version --server --short | grep -E 'Server: v{{ client.version }}(\\+|$)'"
     - require:
       - cmd: prepare_client
+      {%- if client.kubectl.install %}
       - file: {{ kube_config }}
       - environ: helm_env_kubeconfig_param
+      {%- endif %}
       {{ gce_require }}
 
 wait_for_tiller:
@@ -122,15 +154,22 @@ wait_for_tiller:
     - timeout: 30
     - env:
       - HELM_HOME: {{ helm_home }}
+      {%- if client.kubectl.install %}
       - KUBECONFIG: {{ kube_config }}
+      {%- endif %}
       {{ gce_env_var }}
+    {%- if client.kubectl.install or gce_require != "" %}
     - require:
+      {%- if client.kubectl.install %}
       - file: {{ kube_config }}
+      {%- endif %}
       {{ gce_require }}
+    {%- endif %}
     - onchanges:
       - cmd: install_tiller
 {%- endif %}
 
+{%- if "repos" in client %}
 {%- for repo_name, repo_url in client.repos.items() %}
 ensure_{{ repo_name }}_repo:
   cmd.run:
@@ -141,7 +180,9 @@ ensure_{{ repo_name }}_repo:
     - require:
       - cmd: prepare_client
 {%- endfor %}
+{%- endif %}{# "repos" in client #}
 
+{%- if "releases" in client %}
 {%- set namespaces = [] %}
 {%- for release_id, release in client.releases.items() %}
 {%- set release_name = release.get('name', release_id) %}
@@ -152,7 +193,9 @@ ensure_{{ release_id }}_release:
     - name: {{ release_name }}
     - chart_name: {{ release['chart'] }}
     - namespace: {{ namespace }}
+    {% if client.kubectl.install %}
     - kube_config: {{ kube_config }}
+    {% endif %}
     {{ tiller_arg }}
     {{ gce_state_arg }}
     {%- if release.get('version') %}
@@ -168,13 +211,15 @@ ensure_{{ release_id }}_release:
 {%- endif %}
       - cmd: ensure_{{ namespace }}_namespace
       {{ gce_require }}
-    {%- do namespaces.append((namespace, None)) %}
+    {%- do namespaces.append(namespace) %}
 {%- else %}{# not release.enabled #}
 absent_{{ release_id }}_release:
   helm_release.absent:
     - name: {{ release_name }}
     - namespace: {{ namespace }}
+    {% if client.kubectl.install %}
     - kube_config: {{ kube_config }}
+    {% endif %}
     {{ tiller_arg }}
     {{ gce_state_arg }}
     - require:
@@ -185,47 +230,25 @@ absent_{{ release_id }}_release:
       - cmd: prepare_client
 {%- endif %}{# release.enabled #}
 {%- endfor %}{# release_id, release in client.releases #}
+{%- endif %}{# "releases" in client #}
 
-{%- if client.kubectl.install %}
-extract_kubectl:
-  archive.extracted:
-    - name: {{ helm_tmp }}
-    - source: {{ client.kubectl.download_url }}
-    - source_hash: {{ client.kubectl.download_hash }}
-    - archive_format: tar
-    {%- if grains['saltversioninfo'] < [2016, 11] %}
-    - tar_options: v
-    {%- else %}
-    - options: v
-    {%- endif %}
-    - if_missing: {{ helm_tmp }}/{{ client.kubectl.tarball_path }}
-    - require:
-      - file: {{ helm_tmp }}
-
-{{ kubectl_bin }}:
-  file.managed:
-    - source: {{ helm_tmp }}/{{ client.kubectl.tarball_path }}
-    - mode: 555
-    - user: root
-    - group: root
-    - require:
-      - archive: extract_kubectl
-{%- endif %}{# client.kubectl.install #}
-
-{%- for namespace in dict(namespaces) %}
+{%- for namespace in namespaces %}
 ensure_{{ namespace }}_namespace:
   cmd.run:
     - name: kubectl create namespace {{ namespace }}
     - unless: kubectl get namespace {{ namespace }}
     - env:
-      - KUBECONFIG: {{ kube_config }}
       {{ gce_env_var }}
+      {%- if client.kubectl.install %}
+      - KUBECONFIG: {{ kube_config }}
+      {%- endif %}
+    {%- if gce_require != "" or client.kubectl.install %}
     - require:
-      - file: {{ kube_config }}
-      - environ: helm_env_kubeconfig_param
       {{ gce_require }}
-    {%- if client.kubectl.install %}
+      {%- if client.kubectl.install %}
+      - file: {{ kube_config }}
       - file: {{ kubectl_bin }}
+      {%- endif %}
     {%- endif %}
 {%- endfor %}
 

@@ -7,12 +7,10 @@ parameters:
     client:
       enabled: true
       version: 2.4.2
-      download_url: https://storage.googleapis.com/kubernetes-helm/helm-v${helm:client:version}-linux-amd64.tar.gz
       download_hash: sha256=96f74ff04ec7eb38e5f53aba73132bfe4d6b81168f20574dad25a9bcaceec81b
       tiller:
         install: true
         namespace: kube-system
-        host:
       kubectl:
         install: false
         download_url: https://dl.k8s.io/v1.6.7/kubernetes-client-linux-amd64.tar.gz

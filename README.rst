@@ -10,6 +10,14 @@ creates releases in it.
 Sample pillars
 ==============
 
+See the [pillar.example](pillar.example) for a documented example pillar file.
+
+Example Configurations
+======================
+
+_The following examples demonstrate configuring the formula for different
+use cases._
+
 Enable formula, install helm client on node and tiller on Kubernetes (assuming
 already configured kubectl config or local cluster endpoint):
 
@@ -25,7 +33,7 @@ Change version of helm being downloaded and installed:
 
     helm:
       client:
-        version: 2.6.0  # defaults to 2.4.2 currently
+        version: 2.6.0  # defaults to 2.6.2 currently
         download_hash: sha256=youneedtocalculatehashandputithere
 
 Don't install tiller and use existing one exposed on some well-known address:
@@ -84,12 +92,16 @@ Install kubectl and manage remote cluster:
         kubectl:
           install: true  # installs kubectl 1.6.7 by default
           config:
-            cluster:  # directly translated to cluster definition in kubeconfig
+            # directly translated to cluster definition in kubeconfig
+            cluster: 
               server: https://kubernetes.example.com
               certificate-authority-data: base64_of_ca_certificate
-            user:  # same for user
+            cluster_name: kubernetes.example
+            # directly translated to user definition in kubeconfig
+            user:
               username: admin
               password: uberadminpass
+            user_name: admin 
 
 Change kubectl download URL and use it with GKE-based cluster:
 
@@ -102,12 +114,15 @@ Change kubectl download URL and use it with GKE-based cluster:
           download_url: https://dl.k8s.io/v1.6.7/kubernetes-client-linux-amd64.tar.gz
           download_hash: sha256=calculate_hash_here
           config:
-            cluster:  # directly translated to cluster definition in kubeconfig
+            # directly translated to cluster definition in kubeconfig
+            cluster:
               server: https://3.141.59.265
               certificate-authority-data: base64_of_ca_certificate
+            # directly translated to user definition in kubeconfig
             user:
               auth-provider:
                 name: gcp
+            user_name: gce_user
             gce_service_token: base64_of_json_token_downloaded_from_cloud_console
 
 

@@ -26,4 +26,21 @@ Debian:
 {%- endif %}
 {%- endload %}
 
-{%- set client = salt['grains.filter_by'](base_defaults, merge=salt['pillar.get']('helm:client')) %}
+{%- load_yaml as base_config %}
+helm:
+  client:
+    enabled: true
+    version: 2.6.2
+    download_hash: sha256=ba807d6017b612a0c63c093a954c7d63918d3e324bdba335d67b7948439dbca8
+    tiller:
+      install: true
+      namespace: kube-system
+    kubectl:
+      install: true
+      version: 1.6.7
+      download_hash: sha256=54947ef84181e89f9dbacedd54717cbed5cc7f9c36cb37bc8afc9097648e2c91
+      config: {}
+{%- endload %}
+
+{%- set config = salt['pillar.get']('helm:client', base_config.helm.client, merge=true) %}
+{%- set client = salt['grains.filter_by'](base_defaults, merge=config) %}
