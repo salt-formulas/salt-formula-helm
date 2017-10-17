@@ -12,7 +12,7 @@ def failure(name, message):
     }
 
 
-def present(name, chart_name, namespace, version=None, values=None,
+def present(name, chart_name, namespace, version=None, values_file=None,
             tiller_namespace='kube-system', tiller_host=None,
             kube_config=None, gce_service_token=None, helm_home=None):
     kwargs = {
@@ -25,7 +25,7 @@ def present(name, chart_name, namespace, version=None, values=None,
     exists = __salt__['helm.release_exists'](name, namespace, **kwargs)
     if not exists:
         err = __salt__['helm.release_create'](
-            name, chart_name, namespace, version, values, **kwargs)
+            name, chart_name, namespace, version, values_file, **kwargs)
         if err:
             return failure(name, err)
         return {
@@ -37,7 +37,7 @@ def present(name, chart_name, namespace, version=None, values=None,
 
     old_values = __salt__['helm.get_values'](name, **kwargs)
     err = __salt__['helm.release_upgrade'](
-        name, chart_name, namespace, version, values, **kwargs)
+        name, chart_name, namespace, version, values_file, **kwargs)
     if err:
         return failure(name, err)
 

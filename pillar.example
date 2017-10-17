@@ -20,6 +20,12 @@ helm:
     # helm_home: /srv/helm/home
 
     #
+    # The path where this formula places configuration values files on the
+    # target minion. Defaults to /srv/helm/values
+    #
+    # values_dir: /srv/helm/values
+
+    #
     # The flavor of the helm or kubectl binary to install, as informed by the
     # target minion's OS. For available flavor names, peruse the listing of
     # Helm binaries exposed at:

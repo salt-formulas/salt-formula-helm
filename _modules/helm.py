@@ -234,7 +234,7 @@ def release_exists(name, namespace='default',
 
 
 def release_create(name, chart_name, namespace='default',
-                   version=None, values=None,
+                   version=None, values_file=None,
                    tiller_namespace='kube-system', tiller_host=None,
                    kube_config=None, gce_service_token=None,
                    helm_home=None):
@@ -248,12 +248,10 @@ def release_create(name, chart_name, namespace='default',
     args = []
     if version is not None:
         args += ['--version', version]
-    if values is not None:
-        args += ['--values', '/dev/stdin']
+    if values_file is not None:
+        args += ['--values', values_file]
     cmd = _helm_cmd('install', '--namespace', namespace,
                     '--name', name, chart_name, *args, **kwargs)
-    if values is not None:
-        cmd['stdin'] = yaml.serialize(values, default_flow_style=False)
     LOG.debug('Creating release with args: %s', cmd)
     return ok_or_output(cmd, 'Failed to create release "{}"'.format(name))
 
@@ -269,7 +267,7 @@ def release_delete(name, tiller_namespace='kube-system', tiller_host=None,
 
 
 def release_upgrade(name, chart_name, namespace='default',
-                    version=None, values=None,
+                    version=None, values_file=None,
                     tiller_namespace='kube-system', tiller_host=None,
                     kube_config=None, gce_service_token=None, helm_home=None):
     kwargs = {
@@ -281,13 +279,11 @@ def release_upgrade(name, chart_name, namespace='default',
     }
     args = []
     if version is not None:
-        args += ['--version', version]
-    if values is not None:
-        args += ['--values', '/dev/stdin']
+      args += ['--version', version]
+    if values_file is not None:
+      args += ['--values', values_file]
     cmd = _helm_cmd('upgrade', '--namespace', namespace,
                     name, chart_name, *args, **kwargs)
-    if values is not None:
-        cmd['stdin'] = yaml.serialize(values, default_flow_style=False)
     LOG.debug('Upgrading release with args: %s', cmd)
     return ok_or_output(cmd, 'Failed to upgrade release "{}"'.format(name))
 

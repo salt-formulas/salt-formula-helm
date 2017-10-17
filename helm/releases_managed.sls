@@ -10,8 +10,22 @@ include:
 {%- for release_id, release in config.releases.items() %}
 {%- set release_name = release.get('name', release_id) %}
 {%- set namespace = release.get('namespace', 'default') %}
+{%- set values_file = None %}
+{%- if release.get('values') %}
+{%- set values_file = config.values_dir + "/" + release_name + ".yaml" %}
+{%- endif %}
+
 
 {%- if release.get('enabled', True) %}
+
+{%- if values_file %}
+{{ values_file }}:
+  file.managed:
+    - makedirs: True
+    - contents: |
+        {{ release['values'] | yaml(false) | indent(8) }}
+{%- endif %}
+
 ensure_{{ release_id }}_release:
   helm_release.present:
     - name: {{ release_name }}
@@ -24,9 +38,8 @@ ensure_{{ release_id }}_release:
     {%- if release.get('version') %}
     - version: {{ release['version'] }}
     {%- endif %}
-    {%- if release.get('values') %}
-    - values:
-        {{ release['values']|yaml(False)|indent(8) }}
+    {%- if values_file %}
+    - values_file: {{ values_file }}
     {%- endif %}
     - require:
       {%- if config.tiller.install %}
@@ -40,6 +53,13 @@ ensure_{{ release_id }}_release:
       # 
 
 {%- else %}{# not release.enabled #}
+
+{%- if values_file %}
+{{ values_file }}:
+  file.absent
+{%- endif %}
+
+
 absent_{{ release_id }}_release:
   helm_release.absent:
     - name: {{ release_name }}
