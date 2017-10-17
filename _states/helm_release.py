@@ -14,17 +14,18 @@ def failure(name, message):
 
 def present(name, chart_name, namespace, version=None, values=None,
             tiller_namespace='kube-system', tiller_host=None,
-            kube_config=None, gce_service_token=None):
-    tiller_args = {
+            kube_config=None, gce_service_token=None, helm_home=None):
+    kwargs = {
         'tiller_namespace': tiller_namespace,
         'tiller_host': tiller_host,
         'kube_config': kube_config,
         'gce_service_token': gce_service_token,
+        'helm_home': helm_home
     }
-    exists = __salt__['helm.release_exists'](name, namespace, **tiller_args)
+    exists = __salt__['helm.release_exists'](name, namespace, **kwargs)
     if not exists:
         err = __salt__['helm.release_create'](
-            name, chart_name, namespace, version, values, **tiller_args)
+            name, chart_name, namespace, version, values, **kwargs)
         if err:
             return failure(name, err)
         return {
@@ -34,13 +35,13 @@ def present(name, chart_name, namespace, version=None, values=None,
             'comment': 'Release "{}" was created'.format(name),
         }
 
-    old_values = __salt__['helm.get_values'](name, **tiller_args)
+    old_values = __salt__['helm.get_values'](name, **kwargs)
     err = __salt__['helm.release_upgrade'](
-        name, chart_name, namespace, version, values, **tiller_args)
+        name, chart_name, namespace, version, values, **kwargs)
     if err:
         return failure(name, err)
 
-    new_values = __salt__['helm.get_values'](name, **tiller_args)
+    new_values = __salt__['helm.get_values'](name, **kwargs)
     if new_values == old_values:
         return {
             'name': name,
@@ -62,14 +63,15 @@ def present(name, chart_name, namespace, version=None, values=None,
 
 
 def absent(name, namespace, tiller_namespace='kube-system', tiller_host=None,
-           kube_config=None, gce_service_token=None):
-    tiller_args = {
+           kube_config=None, gce_service_token=None, helm_home=None):
+    kwargs = {
         'tiller_namespace': tiller_namespace,
         'tiller_host': tiller_host,
         'kube_config': kube_config,
         'gce_service_token': gce_service_token,
+        'helm_home': helm_home
     }
-    exists = __salt__['helm.release_exists'](name, namespace, **tiller_args)
+    exists = __salt__['helm.release_exists'](name, namespace, **kwargs)
     if not exists:
         return {
             'name': name,
@@ -77,7 +79,7 @@ def absent(name, namespace, tiller_namespace='kube-system', tiller_host=None,
             'result': True,
             'comment': 'Release "{}" doesn\'t exist'.format(name),
         }
-    err = __salt__['helm.release_delete'](name, **tiller_args)
+    err = __salt__['helm.release_delete'](name, **kwargs)
     if err:
         return failure(name, err)
     return {

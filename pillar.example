@@ -7,6 +7,19 @@ helm:
     # version: 2.6.2
     
     #
+    # The path to which the Helm binary should be installed. Defaults to 
+    # /usr/bin/helm
+    #
+    # bin: /usr/bin/helm
+
+    #
+    # The path this formula should use as helm home. Defaults to /srv/helm/home;
+    # it is recommended to set this to /root/.helm if users will be calling 
+    # helm from the command line directly on the target minion
+    #
+    # helm_home: /srv/helm/home
+
+    #
     # The flavor of the helm or kubectl binary to install, as informed by the
     # target minion's OS. For available flavor names, peruse the listing of
     # Helm binaries exposed at:
@@ -76,6 +89,12 @@ helm:
       # Defaults to 1.6.7
       #
       # version: 1.6.7
+      
+      #
+      # The path to which the kubectl binary should be installed. Defaults to 
+      # /usr/bin/kubectl
+      #
+      # bin: /usr/bin/kubectl
 
       #
       # The hash for the kubectl binary version to install. You must calculate 

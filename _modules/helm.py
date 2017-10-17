@@ -3,8 +3,6 @@ import logging
 from salt.serializers import yaml
 from salt.exceptions import CommandExecutionError
 
-
-HELM_HOME = '/srv/helm/home'
 LOG = logging.getLogger(__name__)
 
 def ok_or_output(cmd, prefix=None):
@@ -17,21 +15,25 @@ def ok_or_output(cmd, prefix=None):
     return msg
 
 
-def _helm_cmd(*args, **tiller_kwargs):
-    if tiller_kwargs.get('tiller_host'):
-        tiller_args = ('--host', tiller_kwargs['tiller_host'])
-    elif tiller_kwargs.get('tiller_namespace'):
-        tiller_args = ('--tiller-namespace', tiller_kwargs['tiller_namespace'])
+def _helm_cmd(*args, **kwargs):
+    if kwargs.get('tiller_host'):
+        addtl_args = ('--host', kwargs['tiller_host'])
+    elif kwargs.get('tiller_namespace'):
+        addtl_args = ('--tiller-namespace', kwargs['tiller_namespace'])
     else:
-        tiller_args = ()
-    env = {'HELM_HOME': HELM_HOME}
-    if tiller_kwargs.get('kube_config'):
-        env['KUBECONFIG'] = tiller_kwargs['kube_config']
-    if tiller_kwargs.get('gce_service_token'):
+        addtl_args = ()
+
+    if kwargs.get('helm_home'):
+      addtl_args = addtl_args + ('--home', kwargs['helm_home'])
+
+    env = {}
+    if kwargs.get('kube_config'):
+        env['KUBECONFIG'] = kwargs['kube_config']
+    if kwargs.get('gce_service_token'):
         env['GOOGLE_APPLICATION_CREDENTIALS'] = \
-            tiller_kwargs['gce_service_token']
+            kwargs['gce_service_token']
     return {
-        'cmd': ('helm',) + tiller_args + args,
+        'cmd': ('helm',) + addtl_args + args,
         'env': env,
     }
 
@@ -42,7 +44,7 @@ def _parse_repo(repo_string = None):
     "url": split_string[1].strip()
   }
 
-def list_repos():
+def list_repos(**kwargs):
   '''
   Get the result of running `helm repo list` on the target minion, formatted
   as a list of dicts with two keys:
@@ -50,7 +52,7 @@ def list_repos():
     * name: the name with which the repository is registered
     * url: the url registered for the repository
   '''
-  cmd = _helm_cmd('repo', 'list')
+  cmd = _helm_cmd('repo', 'list', **kwargs)
   result = __salt__['cmd.run_stdout'](**cmd)
   if result is None:
     return result
@@ -61,7 +63,7 @@ def list_repos():
     repo['name']: repo['url'] for repo in [_parse_repo(line) for line in result]
   }
 
-def add_repo(name, url):
+def add_repo(name, url, **kwargs):
   '''
   Register the repository located at the supplied url with the supplied name. 
   Note that re-using an existing name will overwrite the repository url for
@@ -73,13 +75,13 @@ def add_repo(name, url):
   url
       The url for the chart repository.
   '''
-  cmd = _helm_cmd('repo', 'add', name, url)
+  cmd = _helm_cmd('repo', 'add', name, url, **kwargs)
   ret = __salt__['cmd.run_all'](**cmd)
   if ret['retcode'] != 0:
     raise CommandExecutionError(ret['stderr'])
   return ret['stdout']
 
-def remove_repo(name):
+def remove_repo(name, **kwargs):
   '''
   Remove the repository from the Helm client registered with the supplied
   name.
@@ -87,13 +89,13 @@ def remove_repo(name):
   name
       The name (as registered with the Helm client) for the repository to remove
   '''
-  cmd = _helm_cmd('repo', 'remove', name)
+  cmd = _helm_cmd('repo', 'remove', name, **kwargs)
   ret = __salt__['cmd.run_all'](**cmd)
   if ret['retcode'] != 0:
     raise CommandExecutionError(ret['stderr'])
   return ret['stdout']
 
-def manage_repos(present={}, absent=[], exclusive=False):
+def manage_repos(present={}, absent=[], exclusive=False, **kwargs):
   '''
   Manage the repositories registered with the Helm client's local cache. 
 
@@ -147,7 +149,7 @@ def manage_repos(present={}, absent=[], exclusive=False):
       `present` parameter will be registered with the Helm client. Defaults to 
       False.
   '''
-  existing_repos = list_repos()
+  existing_repos = list_repos(**kwargs)
   result = {
     "already_present": [],
     "added": [],
@@ -169,7 +171,7 @@ def manage_repos(present={}, absent=[], exclusive=False):
       result['added'].append({ 
         'name': name, 
         'url': url, 
-        'stdout': add_repo(name, url)
+        'stdout': add_repo(name, url, **kwargs)
       })
       existing_repos = {
         n: u for (n, u) in existing_repos.iteritems() if name != n
@@ -201,7 +203,10 @@ def manage_repos(present={}, absent=[], exclusive=False):
       continue
 
     try:
-      result['removed'].append({ 'name': name, 'stdout': remove_repo(name) })
+      result['removed'].append({ 
+        'name': name, 
+        'stdout': remove_repo(name, **kwargs) 
+      })
     except CommandExecutionError as e:
       result['failed'].append({ 
         "type": "removal", "name": name, "error": '%s' % e 
@@ -209,33 +214,36 @@ def manage_repos(present={}, absent=[], exclusive=False):
 
   return result
 
-def update_repos():
+def update_repos(**kwargs):
   '''
   Ensures the local helm repository cache for each repository is up to date. 
   Proxies the `helm repo update` command.
   '''
-  cmd = _helm_cmd('repo', 'update')
+  cmd = _helm_cmd('repo', 'update', **kwargs)
   return __salt__['cmd.run_stdout'](**cmd)
 
 def release_exists(name, namespace='default',
                    tiller_namespace='kube-system', tiller_host=None,
-                   kube_config=None, gce_service_token=None):
+                   kube_config=None, gce_service_token=None, helm_home=None):
     cmd = _helm_cmd('list', '--short', '--all', '--namespace', namespace, name,
                     tiller_namespace=tiller_namespace, tiller_host=tiller_host,
                     kube_config=kube_config,
-                    gce_service_token=gce_service_token)
+                    gce_service_token=gce_service_token,
+                    helm_home=helm_home)
     return __salt__['cmd.run_stdout'](**cmd) == name
 
 
 def release_create(name, chart_name, namespace='default',
                    version=None, values=None,
                    tiller_namespace='kube-system', tiller_host=None,
-                   kube_config=None, gce_service_token=None):
-    tiller_args = {
+                   kube_config=None, gce_service_token=None,
+                   helm_home=None):
+    kwargs = {
         'tiller_namespace': tiller_namespace,
         'tiller_host': tiller_host,
         'kube_config': kube_config,
         'gce_service_token': gce_service_token,
+        'helm_home': helm_home
     }
     args = []
     if version is not None:
@@ -243,7 +251,7 @@ def release_create(name, chart_name, namespace='default',
     if values is not None:
         args += ['--values', '/dev/stdin']
     cmd = _helm_cmd('install', '--namespace', namespace,
-                    '--name', name, chart_name, *args, **tiller_args)
+                    '--name', name, chart_name, *args, **kwargs)
     if values is not None:
         cmd['stdin'] = yaml.serialize(values, default_flow_style=False)
     LOG.debug('Creating release with args: %s', cmd)
@@ -251,23 +259,25 @@ def release_create(name, chart_name, namespace='default',
 
 
 def release_delete(name, tiller_namespace='kube-system', tiller_host=None,
-                   kube_config=None, gce_service_token=None):
+                   kube_config=None, gce_service_token=None, helm_home=None):
     cmd = _helm_cmd('delete', '--purge', name,
                     tiller_namespace=tiller_namespace, tiller_host=tiller_host,
                     kube_config=kube_config,
-                    gce_service_token=gce_service_token)
+                    gce_service_token=gce_service_token,
+                    helm_home=helm_home)
     return ok_or_output(cmd, 'Failed to delete release "{}"'.format(name))
 
 
 def release_upgrade(name, chart_name, namespace='default',
                     version=None, values=None,
                     tiller_namespace='kube-system', tiller_host=None,
-                    kube_config=None, gce_service_token=None):
-    tiller_args = {
+                    kube_config=None, gce_service_token=None, helm_home=None):
+    kwargs = {
         'tiller_namespace': tiller_namespace,
         'tiller_host': tiller_host,
         'kube_config': kube_config,
         'gce_service_token': gce_service_token,
+        'helm_home': helm_home
     }
     args = []
     if version is not None:
@@ -275,7 +285,7 @@ def release_upgrade(name, chart_name, namespace='default',
     if values is not None:
         args += ['--values', '/dev/stdin']
     cmd = _helm_cmd('upgrade', '--namespace', namespace,
-                    name, chart_name, *args, **tiller_args)
+                    name, chart_name, *args, **kwargs)
     if values is not None:
         cmd['stdin'] = yaml.serialize(values, default_flow_style=False)
     LOG.debug('Upgrading release with args: %s', cmd)
@@ -283,9 +293,10 @@ def release_upgrade(name, chart_name, namespace='default',
 
 
 def get_values(name, tiller_namespace='kube-system', tiller_host=None,
-               kube_config=None, gce_service_token=None):
+               kube_config=None, gce_service_token=None, helm_home=None):
     cmd = _helm_cmd('get', 'values', '--all', name,
                     tiller_namespace=tiller_namespace, tiller_host=tiller_host,
                     kube_config=kube_config,
-                    gce_service_token=gce_service_token)
+                    gce_service_token=gce_service_token,
+                    helm_home=helm_home)
     return yaml.deserialize(__salt__['cmd.run_stdout'](**cmd))

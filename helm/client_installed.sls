@@ -21,26 +21,20 @@ include:
     - require:
       - file: {{ constants.helm.tmp }}
 
-{{ constants.helm.bin }}:
-  file.managed:
+{{ config.bin }}:
+  file.copy:
     - source: {{ constants.helm.tmp }}/{{ config.flavor }}/helm
     - mode: 555
     - user: root
     - group: root
+    - force: true
     - require:
       - archive: {{ constants.helm.tmp }}
-
-/usr/bin/helm:
-  file.symlink:
-    - target: helm-v{{ config.version }}
-    - require:
-      - file: {{ constants.helm.bin }}
+    - unless: cmp -s {{ config.bin }} {{ constants.helm.tmp }}/{{ config.flavor }}/helm
 
 prepare_client:
   cmd.run:
     - name: {{ constants.helm.cmd }} init --client-only
-    - env:
-      - HELM_HOME: {{ constants.helm.home }}
-    - unless: test -d {{ constants.helm.home }}
+    - unless: test -d {{ config.helm_home }}
     - require:
-      - file: {{ constants.helm.bin }}
+      - file: {{ config.bin }}

@@ -17,7 +17,8 @@ ensure_{{ release_id }}_release:
     - name: {{ release_name }}
     - chart_name: {{ release['chart'] }}
     - namespace: {{ namespace }}
-    - kube_config: {{ constants.kubectl.config }}
+    - kube_config: {{ config.kubectl.config_file }}
+    - helm_home: {{ config.helm_home }}
     {{ constants.helm.tiller_arg }}
     {{ constants.helm.gce_state_arg }}
     {%- if release.get('version') %}
@@ -43,7 +44,8 @@ absent_{{ release_id }}_release:
   helm_release.absent:
     - name: {{ release_name }}
     - namespace: {{ namespace }}
-    - kube_config: {{ constants.kubectl.config }}
+    - kube_config: {{ config.kubectl.config_file }}
+    - helm_home: {{ config.helm_home }}
     {{ constants.helm.tiller_arg }}
     {{ constants.helm.gce_state_arg }}
     - require:

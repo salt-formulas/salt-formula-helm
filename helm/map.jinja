@@ -34,6 +34,8 @@ helm:
     # TODO: add parameter for binary installation flavor
     #
     # flavor: linux-amd64
+    bin: /usr/bin/helm
+    helm_home: /srv/helm/home
     tiller:
       install: true
       namespace: kube-system
@@ -41,6 +43,8 @@ helm:
       install: false
       version: 1.6.7
       download_hash: sha256=54947ef84181e89f9dbacedd54717cbed5cc7f9c36cb37bc8afc9097648e2c91
+      bin: /usr/bin/kubectl
+      config_file: /srv/helm/kubeconfig.yaml
       config:
         gce_service_token: 
 {%- endload %}
@@ -51,10 +55,11 @@ helm:
 
 {%- set constants = {
     "helm": {
-      "home": "/srv/helm/helm",
-      "bin": "/usr/bin/helm-v" + config.version,
       "tmp": "/tmp/helm-v" + config.version,
-      "cmd": "helm --tiller-namespace '{}'".format(config.tiller.namespace),
+      "cmd": config.bin + " --home '{}' --tiller-namespace '{}'".format(
+          config.helm_home,
+          config.tiller.namespace
+      ),
       "tiller_arg": "- tiller_namespace: \"{}\"".format(config.tiller.namespace),
       "gce_state_arg": "",
     },
@@ -62,8 +67,6 @@ helm:
       "gce_env_var": "",
     },
     "kubectl": {
-      "bin": "/usr/bin/kubectl",
-      "config": "/srv/helm/kubeconfig.yaml",
       "gce_service_token_path": "/srv/helm/gce_token.json",
     }
   } 
@@ -72,7 +75,7 @@ helm:
 {%- if "host" in config.tiller %}
 {%- do constants.update({
      "helm": {
-       "cmd": "helm --host '{}'".format(config.tiller.host),
+       "cmd": config.bin + " --host '{}'".format(config.tiller.host),
        "tiller_arg": "- tiller_host: \"{}\"".format(config.tiller.host)
      }
    })

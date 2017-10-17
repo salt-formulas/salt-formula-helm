@@ -19,7 +19,7 @@ extract_kubectl:
     - onlyif:
           - test ! -e {{ extracted_binary_path }}
 
-{{ constants.kubectl.bin }}:
+{{ config.kubectl.bin }}:
   file.managed:
     - source: {{ extracted_binary_path }}
     - mode: 555
@@ -27,5 +27,5 @@ extract_kubectl:
     - group: root
     - require:
       - archive: extract_kubectl
-    - unless: cmp -s {{ constants.kubectl.bin }} {{ extracted_binary_path }}
+    - unless: cmp -s {{ config.kubectl.bin }} {{ extracted_binary_path }}
 {%- endif %}

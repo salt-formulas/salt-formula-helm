@@ -3,7 +3,7 @@
 include:
   - .kubectl_installed
 
-{{ constants.kubectl.config }}:
+{{ config.kubectl.config_file }}:
   file.managed:
     - source: salt://helm/files/kubeconfig.yaml.j2
     - mode: 400
