@@ -4,7 +4,7 @@ include:
   - .client_installed
   - .tiller_installed
   - .kubectl_configured
-  - .repos_synchronized
+  - .repos_managed
 
 {%- if "releases" in config %}
 {%- for release_id, release in config.releases.items() %}
