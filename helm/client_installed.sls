@@ -16,7 +16,8 @@ include:
     {%- else %}
     - options: v
     {%- endif %}
-    - if_missing: {{ constants.helm.tmp }}/{{ config.flavor }}/helm
+    - onlyif:
+        - test "{{ config.version }}" -eq "canary" || test ! -e {{ constants.helm.tmp }}/{{ config.flavor }}/helm
     - require:
       - file: {{ constants.helm.tmp }}
 

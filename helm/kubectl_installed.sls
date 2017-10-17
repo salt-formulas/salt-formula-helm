@@ -1,9 +1,13 @@
 {%- from slspath + "/map.jinja" import config, constants with context %}
+{%- set extraction_path = constants.helm.tmp + 
+                          "/kubectl/v" + config.kubectl.version %}
+{%- set extracted_binary_path = extraction_path +
+                                "/kubernetes/client/bin/kubectl" %}
 
 {%- if config.kubectl.install %}
 extract_kubectl:
   archive.extracted:
-    - name: {{ constants.helm.tmp }}/kubectl/v{{ config.kubectl.version }}
+    - name: {{ extraction_path }}
     - source: https://dl.k8s.io/v{{ config.kubectl.version }}/kubernetes-client-{{ config.flavor }}.tar.gz
     - source_hash: {{ config.kubectl.download_hash }}
     - archive_format: tar
@@ -12,16 +16,16 @@ extract_kubectl:
     {%- else %}
     - options: v
     {%- endif %}
-    - if_missing: {{ constants.helm.tmp }}/kubectl/v{{ config.kubectl.version }}
-    - require:
-      - file: {{ constants.helm.tmp }}
+    - onlyif:
+          - test ! -e {{ extracted_binary_path }}
 
 {{ constants.kubectl.bin }}:
   file.managed:
-    - source: {{ constants.helm.tmp }}/kubectl/v{{ config.kubectl.version }}/kubernetes/client/bin/kubectl
+    - source: {{ extracted_binary_path }}
     - mode: 555
     - user: root
     - group: root
     - require:
       - archive: extract_kubectl
+    - unless: cmp -s {{ constants.kubectl.bin }} {{ extracted_binary_path }}
 {%- endif %}
