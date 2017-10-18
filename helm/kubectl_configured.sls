@@ -9,6 +9,7 @@ include:
     - mode: 400
     - user: root
     - group: root
+    - makedirs: true
     - template: jinja
     {%- if config.kubectl.install %}
     - require:
@@ -22,6 +23,7 @@ include:
     - mode: 400
     - user: root
     - group: root
+    - makedirs: true
     - template: jinja
     - context:
         content: {{ config.kubectl.config.gce_service_token }}
