@@ -1,4 +1,5 @@
 import logging
+import re
 
 from salt.serializers import yaml
 from salt.exceptions import CommandExecutionError
@@ -37,12 +38,46 @@ def _helm_cmd(*args, **kwargs):
         'env': env,
     }
 
+def _parse_release(output):
+  result = {}
+  chart_match = re.search(r'CHART\: ([^0-9]+)-([^\s]+)', output)
+  if chart_match:
+    result['chart'] = chart_match.group(1)
+    result['version'] = chart_match.group(2)
+  
+  user_values_match = re.search(r"(?<=USER-SUPPLIED VALUES\:\n)(\n*.+)+?(?=\n*COMPUTED VALUES\:)", output, re.MULTILINE)
+  if user_values_match:
+    result['values'] = yaml.deserialize(user_values_match.group(0))
+
+  computed_values_match = re.search(r"(?<=COMPUTED VALUES\:\n)(\n*.+)+?(?=\n*HOOKS\:)", output, re.MULTILINE)
+  if computed_values_match:
+    result['computed_values'] = yaml.deserialize(computed_values_match.group(0))
+
+  manifest_match = re.search(r"(?<=MANIFEST\:\n)(\n*(?!Release \".+\" has been upgraded).*)+", output, re.MULTILINE)
+  if manifest_match:
+    result['manifest'] = manifest_match.group(0)
+
+  namespace_match = re.search(r"(?<=NAMESPACE\: )(.*)", output)
+  if namespace_match:
+    result['namespace'] = namespace_match.group(0)
+
+  return result
+
 def _parse_repo(repo_string = None):
   split_string = repo_string.split('\t')
   return {
     "name": split_string[0].strip(),
     "url": split_string[1].strip()
   }
+  
+
+def _get_release_namespace(name, tiller_namespace="kube-system", **kwargs):
+  cmd = _helm_cmd("list", name, **kwargs)
+  result = __salt__['cmd.run_stdout'](**cmd)
+  if not result or len(result.split("\n")) < 2:
+    return None
+
+  return result.split("\n")[1].split("\t")[5]
 
 def list_repos(**kwargs):
   '''
@@ -222,77 +257,92 @@ def update_repos(**kwargs):
   cmd = _helm_cmd('repo', 'update', **kwargs)
   return __salt__['cmd.run_stdout'](**cmd)
 
-def release_exists(name, namespace='default',
-                   tiller_namespace='kube-system', tiller_host=None,
-                   kube_config=None, gce_service_token=None, helm_home=None):
-    cmd = _helm_cmd('list', '--short', '--all', '--namespace', namespace, name,
-                    tiller_namespace=tiller_namespace, tiller_host=tiller_host,
-                    kube_config=kube_config,
-                    gce_service_token=gce_service_token,
-                    helm_home=helm_home)
-    return __salt__['cmd.run_stdout'](**cmd) == name
+def get_release(name, tiller_namespace="kube-system", **kwargs):
+  '''
+  Get the parsed release metadata from calling `helm get {{ release }}` for the 
+  supplied release name, or None if no release is found. The following keys may 
+  or may not be in the returned dict:
 
+    * chart
+    * version
+    * values
+    * computed_values
+    * manifest
+    * namespace
+  '''
+  kwargs['tiller_namespace'] = tiller_namespace
+  cmd = _helm_cmd('get', name, **kwargs)
+  result = __salt__['cmd.run_stdout'](**cmd)
+  if not result:
+    return None
+
+  release = _parse_release(result)
+
+  #
+  # `helm get {{ release }}` doesn't currently (2.6.2) return the namespace, so 
+  # separately retrieve it if it's not available
+  #
+  if not 'namespace' in release:
+    release['namespace'] = _get_release_namespace(name, **kwargs)
+  return release
+
+def release_exists(name, tiller_namespace="kube-system", **kwargs):
+  '''
+  Determine whether a release exists in the cluster with the supplied name
+  '''
+  kwargs['tiller_namespace'] = tiller_namespace
+  return get_release(name, **kwargs) is not None
 
 def release_create(name, chart_name, namespace='default',
                    version=None, values_file=None,
-                   tiller_namespace='kube-system', tiller_host=None,
-                   kube_config=None, gce_service_token=None,
-                   helm_home=None):
-    kwargs = {
-        'tiller_namespace': tiller_namespace,
-        'tiller_host': tiller_host,
-        'kube_config': kube_config,
-        'gce_service_token': gce_service_token,
-        'helm_home': helm_home
-    }
+                   tiller_namespace='kube-system', **kwargs):
+    '''
+    Install a release. There must not be a release with the supplied name 
+    already installed to the Kubernetes cluster.
+
+    Note that if a release already exists with the specified name, you'll need
+    to use the release_upgrade function instead; unless the release is in a
+    different namespace, in which case you'll need to delete and purge the 
+    existing release (using release_delete) and *then* use this function to
+    install a new release to the desired namespace.
+    '''
     args = []
     if version is not None:
         args += ['--version', version]
     if values_file is not None:
         args += ['--values', values_file]
-    cmd = _helm_cmd('install', '--namespace', namespace,
-                    '--name', name, chart_name, *args, **kwargs)
+    cmd = _helm_cmd('install', '--namespace', namespace, '--name', name, chart_name, 
+                    *args, **kwargs)
     LOG.debug('Creating release with args: %s', cmd)
     return ok_or_output(cmd, 'Failed to create release "{}"'.format(name))
 
 
-def release_delete(name, tiller_namespace='kube-system', tiller_host=None,
-                   kube_config=None, gce_service_token=None, helm_home=None):
-    cmd = _helm_cmd('delete', '--purge', name,
-                    tiller_namespace=tiller_namespace, tiller_host=tiller_host,
-                    kube_config=kube_config,
-                    gce_service_token=gce_service_token,
-                    helm_home=helm_home)
+def release_delete(name, tiller_namespace='kube-system', **kwargs):
+    '''
+    Delete and purge any release found with the supplied name.
+    '''
+    kwargs['tiller_namespace'] = tiller_namespace
+    cmd = _helm_cmd('delete', '--purge', name, **kwargs)
     return ok_or_output(cmd, 'Failed to delete release "{}"'.format(name))
 
 
 def release_upgrade(name, chart_name, namespace='default',
                     version=None, values_file=None,
-                    tiller_namespace='kube-system', tiller_host=None,
-                    kube_config=None, gce_service_token=None, helm_home=None):
-    kwargs = {
-        'tiller_namespace': tiller_namespace,
-        'tiller_host': tiller_host,
-        'kube_config': kube_config,
-        'gce_service_token': gce_service_token,
-        'helm_home': helm_home
-    }
+                    tiller_namespace='kube-system', **kwargs):
+    '''
+    Upgrade an existing release. There must be a release with the supplied name
+    already installed to the Kubernetes cluster.
+
+    If attempting to change the namespace for the release, this function will
+    fail; you will need to first delete and purge the release and then use the
+    release_create function to create a new release in the desired namespace.
+    '''
+    kwargs['tiller_namespace'] = tiller_namespace
     args = []
     if version is not None:
       args += ['--version', version]
     if values_file is not None:
       args += ['--values', values_file]
-    cmd = _helm_cmd('upgrade', '--namespace', namespace,
-                    name, chart_name, *args, **kwargs)
+    cmd = _helm_cmd('upgrade', '--namespace', namespace, name, chart_name, **kwargs)
     LOG.debug('Upgrading release with args: %s', cmd)
     return ok_or_output(cmd, 'Failed to upgrade release "{}"'.format(name))
-
-
-def get_values(name, tiller_namespace='kube-system', tiller_host=None,
-               kube_config=None, gce_service_token=None, helm_home=None):
-    cmd = _helm_cmd('get', 'values', '--all', name,
-                    tiller_namespace=tiller_namespace, tiller_host=tiller_host,
-                    kube_config=kube_config,
-                    gce_service_token=gce_service_token,
-                    helm_home=helm_home)
-    return yaml.deserialize(__salt__['cmd.run_stdout'](**cmd))

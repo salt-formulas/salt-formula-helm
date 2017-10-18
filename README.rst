@@ -4,7 +4,88 @@ Helm formula
 ============
 
 This formula installs Helm client, installs Tiller on Kubernetes cluster and
-creates releases in it.
+manages releases in it.
+
+Availale States
+===============
+
+The default state applied by this formula (e.g. if just applying `helm`) will
+apply the `helm.releases_managed` state.
+
+`kubectl_installed`
+------------------
+
+Optionally installs the kubectl binary per the configured pillar values,
+such as the version of `kubectl` to instlal and the path where the binary should
+be installed.
+
+`kubectl_configured`
+------------------
+
+Manages a kubectl configuration file and gce_token json file per the configured
+pillar values. Note that the available configuration values allow the path of
+the kube config file to be placed at a different location than the default 
+installation path; this is recommended to avoid confusion if the kubectl 
+binary on the minion might be manually used with multiple contexts.
+
+**includes**:
+* `kubectl_installed`
+
+`client_installed`
+------------------
+
+Installs the helm client binary per the configured pillar values, such as where 
+helm home should be, which version of the helm binary to install and that path
+for the helm binary.
+
+**includes**:
+* `kubectl_installed
+
+`tiller_installed`
+------------------
+
+Optionally installs a Tiller deployment to the kubernetes cluster per the
+`helm:client:tiller:install` pillar value. If the pillar value is set to 
+install tiller to the cluster, the version of the tiller installation will
+match the version of the Helm client installed per the `helm:client:version`
+configuration parameter
+
+**includes**:
+* `client_installed`
+* `kubectl_configured`
+
+`repos_managed`
+------------------
+
+Ensures the repositories configured per the pillar (and only those repositories) 
+are registered at the configured helm home, and synchronizes the local cache 
+with the remote repository with each state execution.
+
+**includes**:
+* `client_installed`
+
+`releases_managed`
+------------------
+
+Ensures the releases configured with the pillar are in the expected state with
+the Kubernetes cluster. This state includes change detection to determine 
+whether the pillar configurations match the release's state in the cluster.
+
+Note that changes to an existing release's namespace will trigger a deletion and 
+re-installation of the release to the cluster.
+
+**includes**:
+* `client_installed`
+* `tiller_installed`
+* `kubectl_configured`
+* `repos_managed`
+
+Availale Modules
+===============
+
+To view documentation on the available modules, run: 
+
+`salt '{{ tgt }}' sys.doc helm`
 
 
 Sample pillars
@@ -119,6 +200,30 @@ Change kubectl download URL and use it with GKE-based cluster:
                 name: gcp
             user_name: gce_user
             gce_service_token: base64_of_json_token_downloaded_from_cloud_console
+
+Known Issues
+============
+
+1. Unable to remove all user supplied values
+
+If a release previously has had user supplied value overrides (via the 
+release's `values` key in the pillar), subsequently removing all `values`
+overrides (so that there is no more `values` key for the release in the 
+pillar) will not actually update the Helm deployment. To get around this,
+specify a fake key/value pair in the release's pillar; Tiller will override
+all previously user-supplied values with the new fake key and value. For 
+example:
+
+
+.. code-block:: yaml
+    helm:
+      client:
+        releases:
+          zoo1:
+            enabled: true
+            ...
+            values:
+              fake_key: fake_value
 
 
 More Information
