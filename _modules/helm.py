@@ -34,7 +34,7 @@ def _helm_cmd(*args, **kwargs):
         env['GOOGLE_APPLICATION_CREDENTIALS'] = \
             kwargs['gce_service_token']
     return {
-        'cmd': ('helm',) + addtl_args + args,
+        'cmd': ('helm',) + args + addtl_args,
         'env': env,
     }
 
@@ -346,3 +346,32 @@ def release_upgrade(name, chart_name, namespace='default',
     cmd = _helm_cmd('upgrade', '--namespace', namespace, name, chart_name, **kwargs)
     LOG.debug('Upgrading release with args: %s', cmd)
     return ok_or_output(cmd, 'Failed to upgrade release "{}"'.format(name))
+
+def install_chart_dependencies(chart_path, **kwargs):
+  '''
+  Install the chart dependencies for the chart definition located at the 
+  specified chart_path.
+
+  chart_path
+      The path to the chart for which to install dependencies
+  '''
+  cmd = _helm_cmd('dependency', 'build', **kwargs)
+  return __salt__['cmd.run_stdout'](cwd=chart_path, **cmd)
+
+def package(path, destination = None, **kwargs):
+  '''
+  Package a chart definition, optionally to a specific destination. Proxies the
+  `helm package` command on the target minion
+
+  path
+      The path to the chart definition to package.
+
+  destination : None
+      An optional alternative destination folder.
+  '''
+  args = []
+  if destination:
+    args += ["-d", destination]
+  
+  cmd = _helm_cmd('package', path, *args, **kwargs)
+  return __salt__['cmd.run_stdout'](**cmd)
