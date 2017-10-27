@@ -145,6 +145,7 @@ helm:
       #     username: admin
       #     password: uberadminpass
       #   user_name: admin
+      #   gce_service_token: yourtokenhere
       
 
     #

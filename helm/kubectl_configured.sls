@@ -17,7 +17,7 @@ include:
     {%- endif %}
 
 {%- if config.kubectl.config.gce_service_token %}
-{{ constants.gce_service_token_path }}:
+{{ constants.kubectl.gce_service_token_path }}:
   file.managed:
     - source: salt://helm/files/gce_token.json.j2
     - mode: 400

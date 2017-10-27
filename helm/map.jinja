@@ -44,7 +44,7 @@ helm:
       bin: /usr/bin/kubectl
       config_file: /srv/helm/kubeconfig.yaml
       config:
-        gce_service_token: 
+        gce_service_token:
 {%- endload %}
 
 {%- set config = salt['pillar.get']('helm:client', base_config.helm.client, merge=true) %}
@@ -71,23 +71,20 @@ helm:
 %}
 
 {%- if "host" in config.tiller %}
-{%- do constants.update({
-     "helm": {
+  {%- do constants.helm.update({
        "cmd": config.bin + " --host '{}'".format(config.tiller.host),
        "tiller_arg": "- tiller_host: \"{}\"".format(config.tiller.host)
-     }
-   })
-%}
+     })
+  %}
 {%- endif %}
 
 {%- if config.kubectl.config.gce_service_token %}
-{%- do constants.update({
-     "helm": {
-       "gce_state_arg": "- gce_service_token: \"{}\"".format(constants.gce_service_token_path),
-     },
-     "tiller": {
-       "gce_env_var": "- GOOGLE_APPLICATION_CREDENTIALS: \"{}\"".format(gce_service_token_path)
-     }
-   })
-%}
+  {%- do constants.helm.update({
+         "gce_state_arg": "- gce_service_token: \"{}\"".format(constants.kubectl.gce_service_token_path),
+      })
+  %}
+  {%- do constants.tiller.update({
+         "gce_env_var": "- GOOGLE_APPLICATION_CREDENTIALS: \"{}\"".format(constants.kubectl.gce_service_token_path)
+      })
+  %}
 {%- endif %}
