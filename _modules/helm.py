@@ -361,7 +361,7 @@ def install_chart_dependencies(chart_path, **kwargs):
   chart_path
       The path to the chart for which to install dependencies
   '''
-  return _cmd_and_result('dependency', 'build', **kwargs)
+  return _cmd_and_result('dependency', 'build', chart_path, **kwargs)
 
 def package(path, destination = None, **kwargs):
   '''
