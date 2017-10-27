@@ -68,23 +68,28 @@ def present(name, chart_name, namespace, version=None, values_file=None,
     kwargs['tiller_namespace'] = tiller_namespace
     old_release = __salt__['helm.get_release'](name, **kwargs)
     if not old_release:
-        err = __salt__['helm.release_create'](
+      try:
+        result = __salt__['helm.release_create'](
             name, chart_name, namespace, version, values_file, **kwargs
         )
-        if err:
-            return _failure(name, err)
         return {
+          'name': name,
+          'changes': {
             'name': name,
-            'changes': {
-                'name': name,
-                'chart_name': chart_name,
-                'namespace': namespace,
-                'version': version,
-                'values': _get_values_from_file(values_file)
-            },
-            'result': True,
-            'comment': 'Release "{}" was created'.format(name),
+            'chart_name': chart_name,
+            'namespace': namespace,
+            'version': version,
+            'values': _get_values_from_file(values_file),
+            'stdout': result.get('stdout')
+          },
+          'result': True,
+          'comment': ('Release "%s" was created' % name + 
+                      '\nExecuted command: %s' % result['cmd'])
         }
+      except CommandExecutionError as e:
+        msg = (("Failed to create new release: %s" % e.error) +
+               "\nExecuted command: %s" % e.cmd)
+        return _failure(name, msg)
 
     changes = {}
     warnings = []
@@ -120,29 +125,35 @@ def present(name, chart_name, namespace, version=None, values_file=None,
     module_fn = 'helm.release_upgrade'
     if changes.get("namespace"):
       LOG.debug("purging old release (%s) due to namespace change" % name)
-      err = __salt__['helm.release_delete'](name, **kwargs)
-      if err:
-        return _failure(name, err, changes)
+      try:
+        result = __salt__['helm.release_delete'](name, **kwargs)
+      except CommandExecutionError as e:
+        msg = ("Failed to delete release for namespace change: %s" % e.error +
+               "\nExecuted command: %s" % e.cmd)
+        return _failure(name, msg, changes)
+
       module_fn = 'helm.release_create'
       warnings.append('Release (%s) was replaced due to namespace change' % name)
 
-    err = __salt__[module_fn](
+    try:
+      result = __salt__[module_fn](
         name, chart_name, namespace, version, values_file, **kwargs
-    )
-    if err:
-      return _failure(name, err, changes)
-
-    ret = {
+      )
+      changes.update({ 'stdout': result.get('stdout') })
+      ret = {
         'name': name,
         'changes': changes,
         'result': True,
-        'comment': 'Release "{}" was updated'.format(name),
-    }
+        'comment': 'Release "%s" was updated\nExecuted command: %s' % (name, result['cmd'])
+      }
+      if warnings:
+        ret['warnings'] = warnings
 
-    if warnings:
-      ret['warnings'] = warnings
-
-    return ret
+      return ret
+    except CommandExecutionError as e:
+      msg = ("Failed to delete release for namespace change: %s" % e.error +
+             "\nExecuted command: %s" % e.cmd)
+      return _failure(name, msg, changes)
 
 
 def absent(name, tiller_namespace='kube-system', **kwargs):
@@ -160,14 +171,16 @@ def absent(name, tiller_namespace='kube-system', **kwargs):
             'name': name,
             'changes': {},
             'result': True,
-            'comment': 'Release "{}" doesn\'t exist'.format(name),
+            'comment': 'Release "%s" doesn\'t exist' % name
         }
-    err = __salt__['helm.release_delete'](name, **kwargs)
-    if err:
-        return _failure(name, err)
-    return {
+    try:
+      result = __salt__['helm.release_delete'](name, **kwargs)
+      return {
         'name': name,
-        'changes': {name: 'DELETED'},
+        'changes': { name: 'DELETED', 'stdout': result['stdout'] },
         'result': True,
-        'comment': 'Release "{}" was deleted'.format(name),
-    }
+        'comment': 'Release "%s" was deleted\nExecuted command: %s' % (name, result['cmd'])
+      }
+    except CommandExecutionError as e:
+      return _failure(e.cmd, e.error)
+

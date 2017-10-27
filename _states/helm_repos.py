@@ -77,25 +77,29 @@ def updated(name, helm_home=None):
          'result': True,
          'comment': 'Successfully synced repositories: ' }
   
-  output = None
+
   try:
-    output = __salt__['helm.update_repos'](helm_home=helm_home)
+    result = __salt__['helm.update_repos'](helm_home=helm_home)
+    cmd_str = "\nExecuted command: %s" % result['cmd']
+
+    success_repos = re.findall(
+      r'Successfully got an update from the \"([^\"]+)\"', result['stdout'])
+    failed_repos = re.findall(
+      r'Unable to get an update from the \"([^\"]+)\"', result['stdout'])
+    
+    if failed_repos and len(failed_repos) > 0:
+      ret['result'] = False
+      ret['changes']['succeeded'] = success_repos
+      ret['changes']['failed'] = failed_repos
+      ret['comment'] = 'Failed to sync against some repositories' + cmd_str
+    else:
+      ret['comment'] += "%s" % success_repos + cmd_str
+    
   except CommandExecutionError as e:
+    ret['name'] = e.cmd
     ret['result'] = False
-    ret['comment'] = "Failed to update repos: %s" % e
+    ret['comment'] = ("Failed to update repos: %s" % e.error + 
+                      "\nExecuted command: %s" % e.cmd)
     return ret
 
-  success_repos = re.findall(
-    r'Successfully got an update from the \"([^\"]+)\"', output)
-  failed_repos = re.findall(
-    r'Unable to get an update from the \"([^\"]+)\"', output)
-  
-  if failed_repos and len(failed_repos) > 0:
-    ret['result'] = False
-    ret['changes']['succeeded'] = success_repos
-    ret['changes']['failed'] = failed_repos
-    ret['comment'] = 'Failed to sync against some repositories'
-  else:
-    ret['comment'] += "%s" % success_repos
-  
   return ret

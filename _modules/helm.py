@@ -6,15 +6,10 @@ from salt.exceptions import CommandExecutionError
 
 LOG = logging.getLogger(__name__)
 
-def ok_or_output(cmd, prefix=None):
-    ret = __salt__['cmd.run_all'](**cmd)
-    if ret['retcode'] == 0:
-        return None
-    msg = "Stdout:\n{0[stdout]}\nStderr:\n{0[stderr]}".format(ret)
-    if prefix:
-        msg = prefix + ':\n' + msg
-    return msg
-
+class HelmExecutionError(CommandExecutionError):
+  def __init__(self, cmd, error):
+    self.cmd = cmd
+    self.error = error
 
 def _helm_cmd(*args, **kwargs):
     if kwargs.get('tiller_host'):
@@ -37,6 +32,24 @@ def _helm_cmd(*args, **kwargs):
         'cmd': ('helm',) + args + addtl_args,
         'env': env,
     }
+
+def _cmd_and_result(*args, **kwargs):
+  cmd = _helm_cmd(*args, **kwargs)
+  env_string = "".join(['%s="%s" ' % (k, v) for (k, v) in cmd.get('env', {}).items()])
+  cmd_string = env_string + " ".join(cmd['cmd'])
+  result = None
+  try:
+    result = __salt__['cmd.run_all'](**cmd)
+    if result['retcode'] != 0:
+      raise CommandExecutionError(result['stderr'])
+    return {
+      'cmd': cmd_string,
+      'stdout': result['stdout'],
+      'stderr': result['stderr']
+    }
+  except CommandExecutionError as e:
+    raise HelmExecutionError(cmd_string, e)
+
 
 def _parse_release(output):
   result = {}
@@ -110,11 +123,7 @@ def add_repo(name, url, **kwargs):
   url
       The url for the chart repository.
   '''
-  cmd = _helm_cmd('repo', 'add', name, url, **kwargs)
-  ret = __salt__['cmd.run_all'](**cmd)
-  if ret['retcode'] != 0:
-    raise CommandExecutionError(ret['stderr'])
-  return ret['stdout']
+  return _cmd_and_result('repo', 'add', name, url, **kwargs)
 
 def remove_repo(name, **kwargs):
   '''
@@ -124,11 +133,7 @@ def remove_repo(name, **kwargs):
   name
       The name (as registered with the Helm client) for the repository to remove
   '''
-  cmd = _helm_cmd('repo', 'remove', name, **kwargs)
-  ret = __salt__['cmd.run_all'](**cmd)
-  if ret['retcode'] != 0:
-    raise CommandExecutionError(ret['stderr'])
-  return ret['stdout']
+  return _cmd_and_result('repo', 'remove', name, **kwargs)
 
 def manage_repos(present={}, absent=[], exclusive=False, **kwargs):
   '''
@@ -206,7 +211,7 @@ def manage_repos(present={}, absent=[], exclusive=False, **kwargs):
       result['added'].append({ 
         'name': name, 
         'url': url, 
-        'stdout': add_repo(name, url, **kwargs)
+        'stdout': add_repo(name, url, **kwargs)['stdout']
       })
       existing_repos = {
         n: u for (n, u) in existing_repos.iteritems() if name != n
@@ -240,7 +245,7 @@ def manage_repos(present={}, absent=[], exclusive=False, **kwargs):
     try:
       result['removed'].append({ 
         'name': name, 
-        'stdout': remove_repo(name, **kwargs) 
+        'stdout': remove_repo(name, **kwargs) ['stdout']
       })
     except CommandExecutionError as e:
       result['failed'].append({ 
@@ -254,8 +259,7 @@ def update_repos(**kwargs):
   Ensures the local helm repository cache for each repository is up to date. 
   Proxies the `helm repo update` command.
   '''
-  cmd = _helm_cmd('repo', 'update', **kwargs)
-  return __salt__['cmd.run_stdout'](**cmd)
+  return _cmd_and_result('repo', 'update', **kwargs)
 
 def get_release(name, tiller_namespace="kube-system", **kwargs):
   '''
@@ -311,19 +315,19 @@ def release_create(name, chart_name, namespace='default',
         args += ['--version', version]
     if values_file is not None:
         args += ['--values', values_file]
-    cmd = _helm_cmd('install', '--namespace', namespace, '--name', name, chart_name, 
-                    *args, **kwargs)
-    LOG.debug('Creating release with args: %s', cmd)
-    return ok_or_output(cmd, 'Failed to create release "{}"'.format(name))
-
+    return _cmd_and_result(
+      'install', chart_name,
+      '--namespace', namespace, 
+      '--name', name,  
+      *args, **kwargs
+    )
 
 def release_delete(name, tiller_namespace='kube-system', **kwargs):
     '''
     Delete and purge any release found with the supplied name.
     '''
     kwargs['tiller_namespace'] = tiller_namespace
-    cmd = _helm_cmd('delete', '--purge', name, **kwargs)
-    return ok_or_output(cmd, 'Failed to delete release "{}"'.format(name))
+    return _cmd_and_result('delete', '--purge', name, **kwargs)
 
 
 def release_upgrade(name, chart_name, namespace='default',
@@ -343,9 +347,11 @@ def release_upgrade(name, chart_name, namespace='default',
       args += ['--version', version]
     if values_file is not None:
       args += ['--values', values_file]
-    cmd = _helm_cmd('upgrade', '--namespace', namespace, name, chart_name, **kwargs)
-    LOG.debug('Upgrading release with args: %s', cmd)
-    return ok_or_output(cmd, 'Failed to upgrade release "{}"'.format(name))
+    return _cmd_and_result(
+      'upgrade', name, chart_name,
+      '--namespace', namespace,  
+      **kwargs
+    )
 
 def install_chart_dependencies(chart_path, **kwargs):
   '''
@@ -355,8 +361,7 @@ def install_chart_dependencies(chart_path, **kwargs):
   chart_path
       The path to the chart for which to install dependencies
   '''
-  cmd = _helm_cmd('dependency', 'build', **kwargs)
-  return __salt__['cmd.run_stdout'](cwd=chart_path, **cmd)
+  return _cmd_and_result('dependency', 'build', **kwargs)
 
 def package(path, destination = None, **kwargs):
   '''
@@ -373,5 +378,4 @@ def package(path, destination = None, **kwargs):
   if destination:
     args += ["-d", destination]
   
-  cmd = _helm_cmd('package', path, *args, **kwargs)
-  return __salt__['cmd.run_stdout'](**cmd)
+  return _cmd_and_result('package', path, *args, **kwargs)
