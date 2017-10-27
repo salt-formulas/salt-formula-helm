@@ -350,7 +350,7 @@ def release_upgrade(name, chart_name, namespace='default',
     return _cmd_and_result(
       'upgrade', name, chart_name,
       '--namespace', namespace,  
-      **kwargs
+      *args, **kwargs
     )
 
 def install_chart_dependencies(chart_path, **kwargs):
