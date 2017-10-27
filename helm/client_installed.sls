@@ -34,7 +34,7 @@ include:
 
 prepare_client:
   cmd.run:
-    - name: {{ constants.helm.cmd }} init --client-only
+    - name: {{ constants.helm.cmd }} init --client-only --home {{ config.helm_home }}
     - unless: test -d {{ config.helm_home }}
     - require:
       - file: {{ config.bin }}
