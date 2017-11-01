@@ -91,7 +91,8 @@ To view documentation on the available modules, run:
 Sample pillars
 ==============
 
-See the [pillar.example](pillar.example) for a documented example pillar file.
+See the [default reclass pillar configuration](metadata/service/client.yml) for 
+a documented example pillar file.
 
 Example Configurations
 ======================

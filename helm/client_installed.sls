@@ -3,12 +3,21 @@
 include:
   - .kubectl_installed
 
+{%- set binary_source = "https://storage.googleapis.com/kubernetes-helm/helm-v" + 
+                        config.version + "-" + config.flavor + ".tar.gz" %}
+
+{%- set binary_source = config.get(
+      "download_url", 
+      "https://storage.googleapis.com/kubernetes-helm" +
+      "/helm-v" + config.version + "-" + config.flavor + ".tar.gz"
+    ) %}
+
 {{ constants.helm.tmp }}:
   file.directory:
     - user: root
     - group: root
   archive.extracted:
-    - source: https://storage.googleapis.com/kubernetes-helm/helm-v{{ config.version }}-{{ config.flavor }}.tar.gz
+    - source: {{ binary_source }}
     - source_hash: {{ config.download_hash }}
     - archive_format: tar
     {%- if grains['saltversioninfo'] < [2016, 11] %}

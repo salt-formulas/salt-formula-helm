@@ -4,11 +4,17 @@
 {%- set extracted_binary_path = extraction_path +
                                 "/kubernetes/client/bin/kubectl" %}
 
+{%- set binary_source = config.kubectl.get(
+      "download_url", 
+      "https://dl.k8s.io/v" + config.kubectl.version + 
+      "/kubernetes-client-" + config.flavor + ".tar.gz"
+    ) %}
+
 {%- if config.kubectl.install %}
 extract_kubectl:
   archive.extracted:
     - name: {{ extraction_path }}
-    - source: https://dl.k8s.io/v{{ config.kubectl.version }}/kubernetes-client-{{ config.flavor }}.tar.gz
+    - source: {{ binary_source }}
     - source_hash: {{ config.kubectl.download_hash }}
     - archive_format: tar
     {%- if grains['saltversioninfo'] < [2016, 11] %}
