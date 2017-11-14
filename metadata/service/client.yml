@@ -5,22 +5,204 @@ classes:
 parameters:
   helm:
     client:
-      enabled: true
+
+      #
+      # The version of the Helm client to install
+      #
       version: 2.4.2
-      download_url: https://storage.googleapis.com/kubernetes-helm/helm-v${helm:client:version}-linux-amd64.tar.gz
+
+      #
+      # The hash for the helm client binary. You must calculate the hash for the
+      # version and flavor of the binary you install (per the helm:client:flavor 
+      # configuration value)
+      # Defaults to the SHA 256 hash for the helm-v2.6.2-linux-amd64.tar.gz binary
+      # 
+      # The binary is downloaded from:
+      # 
+      # https://storage.googleapis.com/kubernetes-helm/helm-v[[ client.version ]]-[[ client.flavor ]].tar.gz
+      # 
+      # Here is an example command you can use to calculate the sha256 hash for 
+      # the binary:
+      # 
+      # ```
+      # shasum -a 256 /path/to/helm-v[[ client.version ]]-linux.amd64.tar.gz
+      # ```
+      # 
       download_hash: sha256=96f74ff04ec7eb38e5f53aba73132bfe4d6b81168f20574dad25a9bcaceec81b
+      
+      #
+      # Optional alternative download URL from which to retrieve the tarred
+      # Helm binary. If specified, this URL will be used instead of the url
+      # computed from the configured helm:client:flavor and helm:client:version
+      # keys.
+      #
+      # download_url: https://storage.googleapis.com/kubernetes-helm/helm-v2.6.2-linux-amd64.tar.gz
+
+      #
+      # The flavor of the helm or kubectl binary to install, as informed by the
+      # target minion's OS. For available flavor names, peruse the listing of
+      # Helm binaries exposed at:
+      # 
+      #   https://storage.googleapis.com/kubernetes-helm
+      #   
+      # Defaults to linux-amd64
+      #
+      # flavor: linux-amd64
+
+      #
+      # The path to which the Helm binary should be installed. Defaults to 
+      # /usr/bin/helm
+      #
+      # bin: /usr/bin/helm
+
+      #
+      # The path this formula should use as helm home. Defaults to /srv/helm/home;
+      # it is recommended to set this to /root/.helm if users will be calling 
+      # helm from the command line directly on the target minion
+      #
+      # helm_home: /srv/helm/home
+
+      #
+      # The path where this formula places configuration values files on the
+      # target minion. Defaults to /srv/helm/values
+      #
+      # values_dir: /srv/helm/values
+
+      #
+      # Configurations to manage the cluster's Tiller installation
+      #
       tiller:
+        #
+        # Whether Tiller should be deployed to the kubernetes cluster as part of
+        # this formaul. Defaults to true.
+        #
         install: true
-        namespace: kube-system
-        host:
+
+        #
+        # The namespace to which Tiller should be installed (only used if 
+        # `helm:client:tiller:install` is set to true).
+        # Defaults to `kube-system`
+        #
+        naamespace: kube-system
+
+        #
+        # The host IP or name and port for an existing tiller installation that
+        # should be used by the Helm client. Defaults to Helm's default if
+        # unspecified.
+        #
+        # host:
+
+      #
+      # Configurations defined to manage the target minion's kubectl installation
+      #
       kubectl:
+        #
+        # Whether kubectl should be installed as part of this formula. 
+        # Defaults to false
+        #
         install: false
-        download_url: https://dl.k8s.io/v1.6.7/kubernetes-client-linux-amd64.tar.gz
+
+        #
+        # The hash for the kubectl binary version to install. You must calculate 
+        # the hash for the version and flavor of the binary you install (per the
+        # helm:client:flavor configuration value)
+        # 
+        # 
+        # The binary is downloaded from:
+        # 
+        # https://dl.k8s.io/v[[ client.kubectl.version ]]/kubernetes-client-[[ client.flavor ]].tar.gz
+        # 
+        # 
+        # Defaults to the SHA 256 hash for the Linux distribution of version 1.6.7
+        # 
+        # Here is an example command you can use to calculate the sha256 hash for 
+        # the binary:
+        # 
+        # ```
+        # shasum -a 256 /path/to/kubernetes-client-[[ client.flavor ]].tar.gz
+        # ```
+        # 
         download_hash: sha256=54947ef84181e89f9dbacedd54717cbed5cc7f9c36cb37bc8afc9097648e2c91
-        tarball_path: kubernetes/client/bin/kubectl
+        
+        #
+        # The version of the kubectl binary to install.
+        # Defaults to 1.6.7
+        #
+        # version: 1.6.7
+          
+        #
+        # Optional alternative download URL from which to retrieve the tarred
+        # kubectl binary. If specified, this URL will be used instead of the url
+        # computed from the configured helm:client:flavor and 
+        # helm:client:kubectl:version keys.
+        #
+        # download_url: https://dl.k8s.io/v1.6.7/kubernetes-client-linux-amd64.tar.gz
+        
+        #
+        # The path to which the kubectl binary should be installed. Defaults to 
+        # /usr/bin/kubectl
+        #
+        # bin: /usr/bin/kubectl
+        
+        #
+        # Configuration parameters that should be applied to the kubectl 
+        # installation's kubeconfig. Not that this will only be applied to the 
+        # kubectl installation managed by this formula.
+        # 
+        # While the kubectl tool can be configured to connect to multiple 
+        # clusters and allow switching between cluster contexts, this kubectl
+        # configuration managed by this formula will only be configured with
+        # the cluster context details used by this formula.
+        #
         config:
-          cluster: {}
+          cluster:
+            cluster_name: kube-cluster
+            user_name: kube-user
           user: {}
           gce_service_token:
+
+      #
+      # The mapping of repository names to urls that should be registered and
+      # kept up-to-date with the helm client
+      #
       repos: {}
+        # mirantisworkloads: https://mirantisworkloads.storage.googleapis.com/
+        # incubator: https://kubernetes-charts-incubator.storage.googleapis.com/
+
+      #
+      # The listing of releases that should be managed by the formula. Note that
+      # if configured, the releases listed under this `helm:client:releases` key
+      # will be used as an authoritative, exclusive listing of the releases that
+      # should be configured and deployed to the Tiller installation; any 
+      # release existing in the tiller cluster that is not configured here 
+      # **will be deleted**
+      #
       releases: {}
+        # zoo1:
+
+          #
+          # The name of the release
+          #
+          # name: my-zookeeper
+
+          #
+          # The repository name and chart name combination for the chart to
+          # release
+          #
+          # chart: mirantisworkloads/zookeeper
+
+          #
+          # The version of the helm chart to install
+          #
+          # version: 1.2.0 
+
+          #
+          # The namespace to which the release should be deployed
+          #
+          # namespace: helm-example-namespace
+
+          # 
+          # Configuration values that should be supplied to the chart.
+          #
+          # values:
+          #   logLevel: INFO
