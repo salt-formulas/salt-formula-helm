@@ -12,11 +12,14 @@ Availale States
 The default state applied by this formula (e.g. if just applying `helm`) will
 apply the `helm.releases_managed` state.
 
+.. note:: For backward compatibility till release 2.0 was kept the state client.sls,
+          which just re-call the helm.release_managed
+
 `kubectl_installed`
 ------------------
 
 Optionally installs the kubectl binary per the configured pillar values,
-such as the version of `kubectl` to instlal and the path where the binary should
+such as the version of `kubectl` to install and the path where the binary should
 be installed.
 
 `kubectl_configured`
@@ -44,7 +47,7 @@ for the helm binary.
 `tiller_installed`
 ------------------
 
-Optionally installs a Tiller deployment to the kubernetes cluster per the
+Optionally installs a Tiller deployment to the Kubernetes cluster per the
 `helm:client:tiller:install` pillar value. If the pillar value is set to 
 install tiller to the cluster, the version of the tiller installation will
 match the version of the Helm client installed per the `helm:client:version`
