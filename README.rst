@@ -6,7 +6,7 @@ Helm formula
 This formula installs Helm client, installs Tiller on Kubernetes cluster and
 manages releases in it.
 
-Availale States
+Available States
 ===============
 
 The default state applied by this formula (e.g. if just applying `helm`) will
