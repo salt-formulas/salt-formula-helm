@@ -42,6 +42,6 @@ suites:
   - name: single
     provisioner:
       pillars-from-files:
-        helm.sls: tests/pillar/single.sls        
+        helm.sls: tests/pillar/single.sls
 
 # vim: ft=yaml sw=2 ts=2 sts=2 tw=125
