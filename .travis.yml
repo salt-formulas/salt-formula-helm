@@ -17,8 +17,9 @@ install:
   - bundle install
 
 env:
-    - PLATFORM=trevorj/salty-whales:xenial SUITE=single
-
+    - PLATFORM=epcim/salt-formulas:saltstack-ubuntu-xenial-salt-2016.3 SUITE=single
+    - PLATFORM=epcim/salt-formulas:saltstack-ubuntu-xenial-salt-2017.7 SUITE=single
+#    - PLATFORM=epcim/salt-formulas:saltstack-ubuntu-bionic-salt-2017.7 SUITE=single
 before_script:
   - set -o pipefail
   - make test | tail
