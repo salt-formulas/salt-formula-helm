@@ -6,7 +6,7 @@ include:
 {%- if "repos" in config %}
 repos_managed:
   helm_repos.managed:
-    - present: 
+    - present:
         {{ config.repos | yaml(false) | indent(8) }}
     - exclusive: true
     - helm_home: {{ config.helm_home }}

@@ -15,8 +15,6 @@ helm:
           username: admin
           password: uberadminpass
         gce_service_token: anNvbl90b2tlbg==
-    repos:
-      mirantisworkloads: https://mirantisworkloads.storage.googleapis.com/
     releases:
       zoo1:
         enabled: false

@@ -3,6 +3,11 @@
 include:
   - .kubectl_installed
 
+{%- set tar_opts = "- options: v" %}
+{%- if grains['saltversioninfo'] < [2016, 11] %}
+{%- set tar_opts = "- tar_options: v" %}
+{%- endif %}
+
 {%- set binary_source = "https://storage.googleapis.com/kubernetes-helm/helm-v" + 
                         config.version + "-" + config.flavor + ".tar.gz" %}
 
@@ -19,13 +24,10 @@ include:
     - archive_format: tar
     - user: root
     - group: root
-    {%- if grains['saltversioninfo'] < [2016, 11] %}
-    - tar_options: v
-    {%- else %}
-    - options: v
-    {%- endif %}
+    {{ tar_opts }}
     - onlyif:
-        - test "{{ config.version }}" = "canary" || test ! -e {{ constants.helm.tmp }}/{{ config.flavor }}/helm
+        - test "{{ config.version }}" -eq "canary" || test ! -e {{ constants.helm.tmp }}/{{ config.flavor }}/helm
+
 
 {{ config.bin }}:
   file.copy:
