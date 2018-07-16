@@ -13,22 +13,19 @@ include:
     ) %}
 
 {{ constants.helm.tmp }}:
-  file.directory:
-    - user: root
-    - group: root
   archive.extracted:
     - source: {{ binary_source }}
     - source_hash: {{ config.download_hash }}
     - archive_format: tar
+    - user: root
+    - group: root
     {%- if grains['saltversioninfo'] < [2016, 11] %}
     - tar_options: v
     {%- else %}
     - options: v
     {%- endif %}
     - onlyif:
-        - test "{{ config.version }}" -eq "canary" || test ! -e {{ constants.helm.tmp }}/{{ config.flavor }}/helm
-    - require:
-      - file: {{ constants.helm.tmp }}
+        - test "{{ config.version }}" = "canary" || test ! -e {{ constants.helm.tmp }}/{{ config.flavor }}/helm
 
 {{ config.bin }}:
   file.copy:
